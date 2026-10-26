@@ -10,6 +10,7 @@ import { useApi } from '../../state/api';
 import { useApiQuery } from '../../state/useApiQuery';
 import { OutcomeBadge, RiskBadge } from '../audit/badges';
 import { CopyButton, ErrorPanel, PageHeader } from '../audit/common';
+import { TraceContentSection } from '../audit/ContentPanel';
 import { EventDrawer } from '../audit/EventDrawer';
 import { Button } from '../ui/button';
 import { Callout, Skeleton } from '../ui/feedback';
@@ -270,20 +271,26 @@ function TraceSteps({ trace, onOpenEvent }: TraceSectionProps) {
   return <Timeline trace={trace} onOpen={onOpenEvent} />;
 }
 
+function TraceContent({ trace, onOpenEvent }: TraceSectionProps) {
+  return <TraceContentSection traceId={trace.traceId} onOpenEvent={onOpenEvent} />;
+}
+
 interface TraceSectionProps {
   trace: TraceTree;
   onOpenEvent: (eventId: string) => void;
 }
 
 /**
- * The sections of the trace page, top to bottom. A new section (for example a panel with the raw
- * content of a step, shown to administrators only) is one more entry here plus its component; the
- * data it needs arrives with the trace or the event, and nothing else on this page changes.
+ * The sections of the trace page, top to bottom. A new section is one more entry here plus its
+ * component; nothing else on this page changes. `content` (raw text of the steps) is administrators
+ * only: it asks the audit API for nothing unless the session role is admin, and renders nothing when
+ * the API has no text.
  */
 const TRACE_SECTIONS: Array<{ id: string; Section: (props: TraceSectionProps) => JSX.Element }> = [
   { id: 'summary', Section: TraceSummary },
   { id: 'notices', Section: TraceNotices },
   { id: 'steps', Section: TraceSteps },
+  { id: 'content', Section: TraceContent },
 ];
 
 export function TraceView({ traceId }: { traceId: string }) {

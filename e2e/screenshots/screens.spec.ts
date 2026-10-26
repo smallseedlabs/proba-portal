@@ -43,6 +43,8 @@ test('main screens', async ({ page }) => {
   await expect(page.getByTestId('integrity-verdict')).toContainText('problem');
   await page.screenshot({ path: `${OUT}/07-integrity-problem.png` });
 
+  // The page scrolls inside the app shell, so a tall window shows the whole screen in one picture.
+  await page.setViewportSize({ width: 1440, height: 1500 });
   await goTo(page, '#/analytics');
   await expect(page.getByTestId('metric-chart')).toBeVisible();
   await expect(page.getByRole('table', { name: 'Top campaigns by spend' })).toBeVisible();

@@ -84,9 +84,15 @@ npm run typecheck       # app and browser tests
 npm test                # unit and component tests (Vitest, TZ=UTC)
 npm run test:e2e        # browser tests (Playwright + axe); builds what it needs
 npm run build && npm run check:bundle   # production build, and proof it carries no in-memory data
+npm run test:live       # optional: checks the HTTP client against a running audit API (see below)
 npm run screenshots     # regenerates docs/screenshots
 npm run validate        # all of the above
 ```
+
+`npm run test:live` is skipped unless an audit API is given, and reads every endpoint through the production
+client and schemas, so drift between the API and the portal fails it:
+`PROBA_AUDIT_API_URL=http://127.0.0.1:3400 PROBA_AUDIT_API_TOKEN=<a token the API accepts> npm run test:live`
+(with the local stack, the API's static local token from `proba/local/.env`).
 
 Browser tests need Chromium once: `npx playwright install chromium`. They do not need an audit API
 or a Firebase project: Firebase's HTTP endpoints and the audit API are answered at the network level,

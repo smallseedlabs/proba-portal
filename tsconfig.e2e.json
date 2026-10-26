@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "types": ["node"], "lib": ["ES2022", "DOM", "DOM.Iterable"] },
+  "include": ["e2e", "playwright.config.ts", "playwright.screenshots.config.ts", "src/vite-env.d.ts"]
+}

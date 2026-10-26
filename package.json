@@ -14,7 +14,7 @@
     "test:e2e:ui": "playwright test --ui",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.e2e.json",
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:bundle && npm run test:e2e",
     "build:e2e": "VITE_API_ADAPTER=memory VITE_API_BASE_URL=http://127.0.0.1:3998 VITE_MEMORY_URL=https://memory.example.com VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e",
     "preview:e2e": "vite preview --outDir dist-e2e --port 4190 --strictPort",

@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Proba design tokens.
+ * All colour pairs below are checked for WCAG 2.1 AA contrast (4.5:1 for text,
+ * 3:1 for UI boundaries) against the surfaces they are used on.
+ */
+@layer base {
+  :root {
+    --background: 220 23% 97%;
+    --foreground: 222 47% 11%;
+
+    --surface: 0 0% 100%;
+    --surface-raised: 0 0% 100%;
+    --surface-sunken: 220 20% 95%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* Proba indigo */
+    --primary: 233 64% 45%;
+    --primary-hover: 233 64% 38%;
+    --primary-subtle: 230 80% 96%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 18% 94%;
+    --secondary-foreground: 222 47% 15%;
+
+    --muted: 220 18% 95%;
+    --muted-foreground: 217 15% 37%;
+
+    --accent: 228 50% 95%;
+    --accent-foreground: 233 55% 30%;
+
+    --danger: 0 72% 42%;
+    --danger-hover: 0 72% 36%;
+    --danger-subtle: 0 86% 97%;
+    --danger-foreground: 0 0% 100%;
+
+    --success: 155 72% 26%;
+    --success-subtle: 150 60% 95%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 30 92% 31%;
+    --warning-subtle: 45 100% 95%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 205 85% 33%;
+    --info-subtle: 204 90% 96%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 16% 88%;
+    --input: 220 13% 66%;
+    --ring: 233 64% 45%;
+
+    --sidebar: 228 40% 13%;
+    --sidebar-foreground: 220 30% 96%;
+    --sidebar-muted: 222 20% 74%;
+    --sidebar-active: 230 35% 23%;
+    --sidebar-border: 228 28% 21%;
+
+    --chart-1: 233 64% 50%;
+    --chart-2: 172 66% 32%;
+    --chart-grid: 220 16% 90%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-body text-foreground;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "name": "proba-portal",
+  "version": "0.1.0",
+  "description": "Proba Insights: the query portal for audit logs, traces, integrity checks and campaign analytics",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "TZ=UTC vitest run",
+    "test:watch": "TZ=UTC vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:bundle && npm run test:e2e",
+    "build:e2e": "VITE_API_ADAPTER=memory VITE_API_BASE_URL=http://127.0.0.1:3998 VITE_MEMORY_URL=https://memory.example.com VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e",
+    "preview:e2e": "vite preview --outDir dist-e2e --port 4190 --strictPort",
+    "build:e2e-http": "VITE_API_ADAPTER=http VITE_API_BASE_URL=http://127.0.0.1:3998 VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e-http",
+    "preview:e2e-http": "vite preview --outDir dist-e2e-http --port 4191 --strictPort",
+    "check:bundle": "node scripts/check-production-bundle.mjs",
+    "verify:api": "vite-node scripts/verify-api.ts",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts"
+  },
+  "dependencies": {
+    "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#v0.3.1",
+    "clsx": "^2.1.1",
+    "firebase": "^12.19.0",
+    "lucide-react": "^1.59.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.48.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^20.16.11",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-node": "^2.1.8",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "proba",
+    "audit",
+    "analytics",
+    "insights"
+  ],
+  "author": "Small Seed Labs",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smallseedlabs/proba-portal.git"
+  }
+}

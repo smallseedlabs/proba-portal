@@ -102,7 +102,8 @@ npm run validate        # all of the above
 `npm run test:live` is skipped unless an audit API is given, and reads every endpoint through the production
 client and schemas, so drift between the API and the portal fails it:
 `PROBA_AUDIT_API_URL=http://127.0.0.1:3400 PROBA_AUDIT_API_TOKEN=<a token the API accepts> npm run test:live`
-(with the local stack, the API's static local token from `proba/local/.env`).
+(with the local stack, the API's static local token from `proba/local/.env`). It also reads raw text as an administrator and, when
+`PROBA_AUDIT_API_VIEWER_TOKEN` is set (the local stack's viewer token), checks that a viewer is refused it.
 
 Browser tests need Chromium once: `npx playwright install chromium`. They do not need an audit API
 or a Firebase project: Firebase's HTTP endpoints and the audit API are answered at the network level,

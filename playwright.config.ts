@@ -8,7 +8,7 @@ import { defineConfig, devices } from '@playwright/test';
  *   network level by the same in-memory behaviour (e2e/support/audit-api-mock.ts).
  */
 const viewport = { width: 1440, height: 900 };
-const common = { ...devices['Desktop Chrome'], viewport, timezoneId: 'UTC', locale: 'en-GB' };
+const common = { ...devices['Desktop Chrome'], viewport, timezoneId: 'UTC', locale: 'en-GB', reducedMotion: 'reduce' as const };
 
 export default defineConfig({
   testDir: './e2e',

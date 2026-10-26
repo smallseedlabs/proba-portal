@@ -374,6 +374,8 @@ export const sessionSchema = z.object({
   email: z.string(),
   role: z.enum(['viewer', 'admin']),
   workspaceId: z.string(),
+  /** Human-readable workspace name, when the API provides one. */
+  workspaceName: z.string().optional(),
 });
 export type ApiSession = z.infer<typeof sessionSchema>;
 

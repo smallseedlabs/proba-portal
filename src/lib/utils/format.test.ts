@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { niceTicks } from './chart';
-import { formatCurrency, formatRelativeTime, initials, parseSortableNumber } from './format';
+import { formatCurrency, formatRelativeTime, initials, parseSortableNumber, workspaceDisplayName } from './format';
 
 describe('format utilities', () => {
   it.each([
@@ -36,5 +36,16 @@ describe('format utilities', () => {
     expect(niceTicks(28)).toEqual([0, 10, 20, 30]);
     expect(niceTicks(3000)).toEqual([0, 1000, 2000, 3000]);
     expect(niceTicks(0)).toEqual([0, 1]);
+  });
+
+  it.each([
+    [{ workspaceId: 'seedbed' }, 'Seedbed'],
+    [{ workspaceId: 'ws_northwind' }, 'Northwind'],
+    [{ workspaceId: 'ws_acme-labs' }, 'Acme Labs'],
+    [{ workspaceId: 'seedbed', workspaceName: '  Seedbed Labs ' }, 'Seedbed Labs'],
+    [{ workspaceId: 'seedbed', workspaceName: '   ' }, 'Seedbed'],
+    [{ workspaceId: 'ws_' }, 'ws_'],
+  ])('shows a readable workspace name for %j', (input, expected) => {
+    expect(workspaceDisplayName(input)).toBe(expected);
   });
 });

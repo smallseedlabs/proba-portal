@@ -4,7 +4,7 @@ import type { SessionUser } from '../../lib/auth';
 import { zoneLabel } from '../../lib/time';
 import { useTimeMode, type TimeMode } from '../../lib/time-context';
 import { cn } from '../../lib/utils/cn';
-import { initials } from '../../lib/utils/format';
+import { initials, workspaceDisplayName } from '../../lib/utils/format';
 import { Button } from '../ui/button';
 import { Menu } from '../ui/menu';
 
@@ -46,19 +46,20 @@ export function TopBar({
   onSignOut: () => void;
   onOpenNav: () => void;
 }) {
+  const workspaceName = workspaceDisplayName(access);
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b bg-surface px-4 lg:px-6">
       <Button variant="ghost" size="icon" className="md:hidden" onClick={onOpenNav} aria-label="Open navigation">
         <MenuIcon className="h-5 w-5" aria-hidden="true" />
       </Button>
 
-      <div className="flex items-center gap-2.5 rounded-md border bg-surface px-2.5 py-1.5" aria-label={`Workspace ${access.workspaceId}`} role="group">
+      <div className="flex items-center gap-2.5 rounded-md border bg-surface px-2.5 py-1.5" aria-label={`Workspace ${workspaceName}`} role="group">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-subtle text-primary" aria-hidden="true">
           <Building2 className="h-4 w-4" />
         </span>
         <span className="sr-only text-left sm:not-sr-only">
           <span className="block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Workspace</span>
-          <span className="block max-w-[200px] truncate text-body font-semibold leading-tight text-foreground">{access.workspaceId}</span>
+          <span className="block max-w-[200px] truncate text-body font-semibold leading-tight text-foreground">{workspaceName}</span>
         </span>
       </div>
 

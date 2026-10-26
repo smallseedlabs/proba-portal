@@ -11,6 +11,10 @@ export interface AppConfig {
    * when this is a valid http(s) address, and there is nothing in its place otherwise.
    */
   memoryUrl: string | null;
+  /** debug | info | warn | error | silent. */
+  logLevel: string;
+  /** Where log entries go: "console" (JSON lines) or "none". */
+  logSink: string;
 }
 
 export interface RuntimeEnv {
@@ -20,6 +24,8 @@ export interface RuntimeEnv {
   FIREBASE_AUTH_DOMAIN?: string;
   FIREBASE_PROJECT_ID?: string;
   FIREBASE_APP_ID?: string;
+  LOG_LEVEL?: string;
+  LOG_SINK?: string;
 }
 
 /**
@@ -58,6 +64,8 @@ export function loadConfig(env: RuntimeEnv | undefined = (window as { ENV?: Runt
     apiBaseUrl: (env?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3100').replace(/\/+$/, ''),
     firebase: firebaseConfig(env),
     memoryUrl: parseHttpUrl(env?.MEMORY_URL || import.meta.env.VITE_MEMORY_URL),
+    logLevel: env?.LOG_LEVEL || import.meta.env.VITE_LOG_LEVEL || 'info',
+    logSink: env?.LOG_SINK || import.meta.env.VITE_LOG_SINK || 'console',
   };
 }
 

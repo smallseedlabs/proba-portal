@@ -1,3 +1,4 @@
+import { getLogger } from '../log/logger';
 import { AuthError, type AuthClient, type AuthErrorCode, type Credentials, type Session } from './types';
 
 /** Firebase web app config, from VITE_FIREBASE_* at build time (or window.ENV at runtime). */
@@ -63,7 +64,7 @@ export function toAuthError(error: unknown): AuthError {
   const mapped = typeof code === 'string' ? FIREBASE_ERRORS[code] : undefined;
   if (typeof code === 'string' && (mapped === 'unavailable' || !mapped)) {
     // Configuration problems are for the administrator, not the user.
-    console.error(`Firebase Authentication error: ${code}`);
+    getLogger().error('auth.provider_error', { code });
   }
   return new AuthError(mapped ?? 'unknown');
 }
@@ -112,9 +113,9 @@ export class FirebaseAuthClient implements AuthClient {
   private provider(): Promise<IdentityProvider> {
     const config = this.options.firebase;
     if (!config) {
-      console.error(
-        'Firebase is not configured: set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID and VITE_FIREBASE_APP_ID.'
-      );
+      getLogger().error('auth.not_configured', {
+        missing: 'FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID and FIREBASE_APP_ID (or their VITE_ equivalents) must all be set',
+      });
       return Promise.reject(new AuthError('unavailable'));
     }
     if (!this.identity) {
@@ -126,27 +127,32 @@ export class FirebaseAuthClient implements AuthClient {
     return this.identity;
   }
 
-  private async complete(signIn: (identity: IdentityProvider) => Promise<IdentityUser>): Promise<Session> {
-    const identity = await this.provider();
+  private async complete(method: 'password' | 'google', signIn: (identity: IdentityProvider) => Promise<IdentityUser>): Promise<Session> {
     try {
-      return toSession(await signIn(identity));
+      const identity = await this.provider();
+      const session = toSession(await signIn(identity));
+      getLogger().info('auth.signed_in', { method, userId: session.user.id });
+      return session;
     } catch (error) {
-      throw toAuthError(error);
+      const authError = toAuthError(error);
+      getLogger().warn('auth.sign_in_failed', { method, code: authError.code });
+      throw authError;
     }
   }
 
   signIn({ email, password }: Credentials): Promise<Session> {
-    return this.complete((identity) => identity.signInWithPassword(email, password));
+    return this.complete('password', (identity) => identity.signInWithPassword(email, password));
   }
 
   signInWithGoogle(): Promise<Session> {
-    return this.complete((identity) => identity.signInWithGoogle());
+    return this.complete('google', (identity) => identity.signInWithGoogle());
   }
 
   async sendPasswordReset(email: string): Promise<void> {
     const identity = await this.provider();
     try {
       await identity.sendPasswordReset(email);
+      getLogger().info('auth.password_reset_requested');
     } catch (error) {
       const authError = toAuthError(error);
       // Do not reveal whether an account exists for this address.
@@ -159,6 +165,7 @@ export class FirebaseAuthClient implements AuthClient {
     if (!this.configured) return null;
     try {
       const user = await (await this.provider()).currentUser();
+      getLogger().debug('auth.restore', { signedIn: user !== null });
       return user ? toSession(user) : null;
     } catch {
       return null;
@@ -169,6 +176,7 @@ export class FirebaseAuthClient implements AuthClient {
     if (!this.configured) return;
     try {
       await (await this.provider()).signOut();
+      getLogger().info('auth.signed_out');
     } catch {
       // Best effort: the local session is always cleared.
     }

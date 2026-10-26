@@ -124,4 +124,31 @@ test.describe('over the audit API', () => {
     await alert.getByRole('button', { name: 'Try again' }).click();
     await expect(page.getByRole('table', { name: 'Audit events' })).toBeVisible();
   });
+
+  test('writes structured JSON log lines with trace ids, and never the ID token', async ({ page }) => {
+    const lines: string[] = [];
+    page.on('console', (m) => {
+      if (m.text().startsWith('{"ts"')) lines.push(m.text());
+    });
+    const firebase = await mockFirebase(page);
+    await mockAuditApi(page);
+    await signInThroughNetwork(page);
+    await expect(page.getByRole('table', { name: 'Audit events' })).toBeVisible();
+
+    const entries = lines.map((l) => JSON.parse(l) as Record<string, string | number>);
+    expect(entries.length).toBeGreaterThan(2);
+    for (const e of entries) {
+      expect(e.service).toBe('proba-portal');
+      expect(typeof e.traceId).toBe('string');
+      expect(typeof e.sessionId).toBe('string');
+    }
+    expect(entries.some((e) => e.event === 'auth.signed_in')).toBe(true);
+    const request = entries.find((e) => e.event === 'api.request' && e.path === '/v1/events')!;
+    expect(request.traceId).toBe('e2e-trace-ref');
+    expect(request.status).toBe(200);
+    const all = lines.join('\n');
+    expect(all).not.toContain(firebase.issued[0]!);
+    expect(all).not.toContain(ACCOUNT.email);
+    expect(all).not.toContain(ACCOUNT.password);
+  });
 });

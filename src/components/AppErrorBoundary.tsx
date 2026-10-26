@@ -1,11 +1,16 @@
 import { Component, type ReactNode } from 'react';
 import { LogoMark } from './brand/Logo';
+import { getLogger } from '../lib/log/logger';
 
 export class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  componentDidCatch(error: Error, info: { componentStack?: string | null }) {
+    getLogger().error('ui.render_failed', { message: error.message, stack: error.stack?.split('\n').slice(0, 6).join('\n'), componentStack: info.componentStack?.split('\n').slice(0, 6).join('\n') });
   }
 
   render() {

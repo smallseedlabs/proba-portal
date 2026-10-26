@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { getLogger } from '../log/logger';
 import { ApiError, type ApiErrorKind } from './errors';
 import type {
   AuditApi,
@@ -78,16 +79,28 @@ export class HttpAuditApi implements AuditApi {
   }
 
   private async send(url: string, token: string, signal?: AbortSignal): Promise<Response> {
+    const started = Date.now();
+    const parsed = new URL(url);
+    const where = { method: 'GET', path: parsed.pathname, queryKeys: [...parsed.searchParams.keys()] };
     try {
-      return await this.fetchImpl(url, {
+      const response = await this.fetchImpl(url, {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         signal,
       });
+      getLogger().info('api.request', {
+        ...where,
+        status: response.status,
+        durationMs: Date.now() - started,
+        traceId: response.headers.get('X-Trace-Id') ?? undefined,
+      });
+      return response;
     } catch (error) {
       if ((error as { name?: string } | null)?.name === 'AbortError') {
+        getLogger().debug('api.cancelled', { ...where, durationMs: Date.now() - started });
         throw new ApiError('cancelled', MESSAGES.cancelled);
       }
+      getLogger().warn('api.network_error', { ...where, durationMs: Date.now() - started });
       throw new ApiError('network', MESSAGES.network);
     }
   }
@@ -109,6 +122,13 @@ export class HttpAuditApi implements AuditApi {
       issues: body?.issues,
       retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
     });
+    getLogger()[response.status >= 500 ? 'error' : 'warn']('api.error', {
+      path: new URL(response.url || this.baseUrl).pathname,
+      status: response.status,
+      kind,
+      code: body?.error,
+      traceId: error.traceId,
+    });
     this.options.onError?.(error);
     throw error;
   }
@@ -117,6 +137,7 @@ export class HttpAuditApi implements AuditApi {
 
   /** Several requests rejected at once share one refresh instead of each asking for a new token. */
   private refreshToken(): Promise<string> {
+    if (!this.refreshing) getLogger().info('api.token_refresh');
     this.refreshing ??= this.options.getToken(true).finally(() => {
       this.refreshing = null;
     });
@@ -160,7 +181,12 @@ export class HttpAuditApi implements AuditApi {
         status: response.status,
         traceId: response.headers.get('X-Trace-Id') ?? undefined,
       });
-      console.error('Unexpected response shape', path, parsed.error.issues.slice(0, 3));
+      getLogger().error('api.bad_response', {
+        path,
+        status: response.status,
+        traceId: response.headers.get('X-Trace-Id') ?? undefined,
+        issues: parsed.error.issues.slice(0, 3).map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
       this.options.onError?.(error);
       throw error;
     }

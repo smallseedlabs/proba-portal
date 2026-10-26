@@ -5,6 +5,7 @@ import type { AuditApi } from './lib/api/port';
 import type { ApiSession } from './lib/api/schemas';
 import { AUTH_ERROR_MESSAGES, AuthError, FirebaseAuthClient, type Session } from './lib/auth';
 import { useConfig } from './lib/config';
+import { getLogger } from './lib/log/logger';
 import { SignInPage } from './components/auth/SignInPage';
 import { AppShell } from './components/shell/AppShell';
 import { LogoMark } from './components/brand/Logo';
@@ -79,6 +80,7 @@ export default function App() {
   }, [auth, signedOut]);
 
   const handleExpired = useCallback(() => {
+    getLogger().warn('session.expired');
     void auth.signOut();
     signedOut(AUTH_ERROR_MESSAGES.session_expired);
   }, [auth, signedOut]);
@@ -99,10 +101,12 @@ export default function App() {
           },
         });
         const access = await api.getSession();
+        getLogger().info('session.ready', { role: access.role, workspaceId: access.workspaceId });
         if (!cancelled) setPhase({ name: 'ready', session: connectingSession, api, access });
       } catch (error) {
         if (cancelled) return;
         const apiError = error instanceof ApiError ? error : new ApiError('unavailable', 'Proba is temporarily unavailable. Please try again shortly.');
+        getLogger().warn('session.rejected', { kind: apiError.kind, status: apiError.status, traceId: apiError.traceId });
         if (apiError.kind === 'unauthenticated') {
           void auth.signOut();
           signedOut(AUTH_ERROR_MESSAGES.session_expired);

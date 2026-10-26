@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ApiError } from './errors';
 import { HttpAuditApi } from './http';
+import { createLogger, setLogger, type LogEntry } from '../log/logger';
 import { InMemoryAuditApi } from './memory/memory-audit-api';
 
 const NOW = Date.parse('2026-10-26T12:30:00.000Z');
@@ -166,5 +167,33 @@ describe('HttpAuditApi token refresh', () => {
     await Promise.all([api.getSession(), api.getSession(), api.getSession()]);
     expect(getToken.mock.calls.filter(([force]) => force)).toHaveLength(1);
     expect(seen.filter((a) => a === 'Bearer fresh-token')).toHaveLength(3);
+  });
+});
+
+describe('HttpAuditApi logging', () => {
+  it('logs each request with the API trace id, and never the token or the filter values', async () => {
+    const entries: LogEntry[] = [];
+    setLogger(createLogger({ level: 'debug', sink: { write: (e) => entries.push(e) }, sessionId: 'sess' }));
+    try {
+      const fetchImpl = vi.fn(async (url: RequestInfo | URL) =>
+        String(url).includes('/v1/session')
+          ? json(200, SESSION, { 'X-Trace-Id': 'srv-1' })
+          : json(503, { error: 'unavailable', traceId: 'srv-2' }, { 'X-Trace-Id': 'srv-2' })
+      ) as unknown as typeof fetch;
+      const { api } = make(fetchImpl);
+      await api.getSession();
+      await api.searchEvents({ q: 'confidential text', outcome: 'failure' }).catch(() => undefined);
+      const line = JSON.stringify(entries);
+      expect(line).not.toContain('confidential text');
+      expect(line).not.toContain('Bearer');
+      expect(line).not.toContain('"token"');
+      expect(entries.find((e) => e.event === 'api.request' && e.path === '/v1/session')).toMatchObject({ status: 200, traceId: 'srv-1', method: 'GET', level: 'info' });
+      const failed = entries.filter((e) => e.traceId === 'srv-2');
+      expect(failed.map((e) => e.event).sort()).toEqual(['api.error', 'api.request']);
+      expect(entries.find((e) => e.event === 'api.error')).toMatchObject({ level: 'error', status: 503, kind: 'unavailable' });
+      expect(entries.find((e) => e.event === 'api.request' && e.path === '/v1/events')?.queryKeys).toEqual(['q', 'outcome']);
+    } finally {
+      setLogger(createLogger({ level: 'silent' }));
+    }
   });
 });

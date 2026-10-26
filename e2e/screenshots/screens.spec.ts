@@ -69,6 +69,59 @@ test('main screens', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/09-explorer-mobile.png` });
 });
 
+test('memory screens', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockFirebase(page);
+  await page.goto('/');
+  await page.getByLabel('Work email').fill(ACCOUNT.email);
+  await page.getByLabel('Password', { exact: true }).fill(ACCOUNT.password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: 'Main' }).first()).toBeVisible();
+  // The page scrolls inside the app shell, so a tall window shows a whole screen in one picture.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await goTo(page, '#/memory?q=campaign+budget+approval');
+  await expect(page.getByRole('table', { name: 'Memories ranked for the search' })).toBeVisible();
+  await page.screenshot({ path: `${OUT}/13-memory-explorer.png` });
+
+  await page.setViewportSize({ width: 1440, height: 1900 });
+  await goTo(page, '#/memory/7a1c0000-0000-4000-8000-000000000003');
+  await expect(page.getByRole('list', { name: 'Memories in order, newest first' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Retrievals that returned this memory' })).toBeVisible();
+  await page.screenshot({ path: `${OUT}/14-memory-detail.png` });
+
+  await page.setViewportSize({ width: 1440, height: 1650 });
+  await goTo(page, '#/retrievals');
+  await page.getByLabel('Question').fill('when does a campaign budget need administrator approval');
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(page.getByTestId('candidates-table')).toBeVisible();
+  await page.screenshot({ path: `${OUT}/15-retrieval-inspector.png` });
+
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await goTo(page, '#/profiles');
+  await expect(page.getByTestId('active-default')).toBeVisible();
+  await page.locator('summary', { hasText: 'Configuration' }).nth(1).click();
+  await page.screenshot({ path: `${OUT}/16-scoring-profiles.png` });
+
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await goTo(page, '#/jobs');
+  await expect(page.getByRole('table', { name: /Recent background job runs/ })).toBeVisible();
+  await page.screenshot({ path: `${OUT}/17-jobs.png` });
+});
+
+test('the memory screens for a viewer', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => window.sessionStorage.setItem('proba.e2e.role', 'viewer'));
+  await mockFirebase(page);
+  await page.goto('/');
+  await page.getByLabel('Work email').fill(ACCOUNT.email);
+  await page.getByLabel('Password', { exact: true }).fill(ACCOUNT.password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await goTo(page, '#/memory');
+  await expect(page.getByRole('table', { name: 'Memories, newest first' })).toBeVisible();
+  await page.screenshot({ path: `${OUT}/18-memory-explorer-viewer.png` });
+});
+
 test('the same trace for a viewer has no raw text', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => window.sessionStorage.setItem('proba.e2e.role', 'viewer'));

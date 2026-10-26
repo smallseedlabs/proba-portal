@@ -1,4 +1,4 @@
-import { Brain, ExternalLink, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { routeHref, type Section } from '../../lib/router';
 import { cn } from '../../lib/utils/cn';
 import { Logo, LogoMark } from '../brand/Logo';
@@ -12,22 +12,44 @@ const linkClass = (active: boolean, compact: boolean) =>
     active ? 'bg-sidebar-active text-white' : 'text-sidebar-muted hover:bg-sidebar-active/60 hover:text-white'
   );
 
+function NavList({ entries, current, compact, onNavigate }: { entries: NavEntry[]; current: Section; compact: boolean; onNavigate?: () => void }) {
+  return (
+    <ul className="space-y-1">
+      {entries.map(({ section, label, icon: Icon }) => {
+        const active = current === section;
+        return (
+          <li key={section}>
+            <a
+              href={routeHref({ section })}
+              onClick={onNavigate}
+              aria-current={active ? 'page' : undefined}
+              title={compact ? label : undefined}
+              className={linkClass(active, compact)}
+            >
+              <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-[#A5B4FC]' : '')} aria-hidden="true" />
+              <span className={compact ? 'sr-only' : 'flex-1'}>{label}</span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function Sidebar({
   current,
   items,
-  memoryUrl,
   compact = false,
   onNavigate,
   className,
 }: {
   current: Section;
   items: NavEntry[];
-  /** Present only when the memory console is configured. */
-  memoryUrl: string | null;
   compact?: boolean;
   onNavigate?: () => void;
   className?: string;
 }) {
+  const memoryEntries = items.filter((e) => e.group === 'memory');
   return (
     <div className={cn('flex h-full flex-col bg-sidebar text-sidebar-foreground', className)}>
       <div className={cn('flex h-16 items-center border-b border-sidebar-border', compact ? 'justify-center px-2' : 'px-5')}>
@@ -41,35 +63,19 @@ export function Sidebar({
         )}
       </div>
       <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-4">
-        <ul className="space-y-1">
-          {items.map(({ section, label, icon: Icon }) => {
-            const active = current === section;
-            return (
-              <li key={section}>
-                <a
-                  href={routeHref({ section })}
-                  onClick={onNavigate}
-                  aria-current={active ? 'page' : undefined}
-                  title={compact ? label : undefined}
-                  className={linkClass(active, compact)}
-                >
-                  <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-[#A5B4FC]' : '')} aria-hidden="true" />
-                  <span className={compact ? 'sr-only' : 'flex-1'}>{label}</span>
-                </a>
-              </li>
-            );
-          })}
-          {memoryUrl && (
-            <li>
-              <a href={memoryUrl} target="_blank" rel="noopener noreferrer" title={compact ? 'Memory' : undefined} className={linkClass(false, compact)}>
-                <Brain className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-                <span className={compact ? 'sr-only' : 'flex-1'}>Memory</span>
-                <ExternalLink className={cn('h-3.5 w-3.5 shrink-0', compact && 'hidden')} aria-hidden="true" />
-                <span className="sr-only">(opens in a new tab)</span>
-              </a>
-            </li>
-          )}
-        </ul>
+        <NavList entries={items.filter((e) => e.group !== 'memory')} current={current} compact={compact} onNavigate={onNavigate} />
+        {memoryEntries.length > 0 && (
+          <div className="mt-5" role="group" aria-labelledby={compact ? undefined : 'nav-memory-heading'} aria-label={compact ? 'Memory' : undefined}>
+            {compact ? (
+              <hr className="mx-2 mb-3 border-sidebar-border" aria-hidden="true" />
+            ) : (
+              <p id="nav-memory-heading" className="mb-1.5 px-3 text-caption font-semibold uppercase tracking-wide text-sidebar-muted">
+                Memory
+              </p>
+            )}
+            <NavList entries={memoryEntries} current={current} compact={compact} onNavigate={onNavigate} />
+          </div>
+        )}
       </nav>
       {!compact && (
         <div className="m-3 rounded-lg border border-sidebar-border bg-white/[0.03] p-3">

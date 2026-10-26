@@ -1,4 +1,4 @@
-import type { AuditEventRecord, CampaignTotals, MetricsTotals } from '../schemas';
+import type { AuditContent, AuditEventRecord, CampaignTotals, MetricsTotals } from '../schemas';
 
 /**
  * Deterministic fixture data for the in-memory adapter, which is used only by the automated tests
@@ -113,7 +113,43 @@ interface SpanSpec {
   errorMessage?: string;
   details?: Record<string, unknown>;
   cost?: AuditEventRecord['cost'];
+  /** Raw text of the step, as the administrator-only content routes return it. */
+  content?: AuditContent;
 }
+
+/** Text shapes used by the fixture data: a masked secret, a long message that was cut, and plain text. */
+const USER_MESSAGES = [
+  'Raise the daily budget of the spring launch campaign to 6,500 and tell me what changes.',
+  'Pause the retargeting campaign until Thursday and summarise how it performed this week.',
+  'Create an ad set for the newsletter growth campaign targeting existing subscribers in Germany.',
+  'Sync audiences for the brand search campaign. Use the credential [REDACTED:api_key] if the platform asks again.',
+  'Why did spend on the EMEA awareness campaign fall on Tuesday? Compare it with the previous week.',
+];
+
+function userMessage(index: number): AuditContent {
+  if (index % 11 === 4) {
+    const text = `Please review these notes for the quarterly plan and update every campaign accordingly. ${'Prioritise efficiency over reach where the cost per acquisition is above target. '.repeat(40)}`.slice(0, 2000);
+    return { kind: 'user_message', text, truncated: true, originalLength: 18_250, redactions: 0 };
+  }
+  const text = USER_MESSAGES[index % USER_MESSAGES.length]!;
+  return { kind: 'user_message', text, truncated: false, originalLength: text.length, redactions: text.includes('[REDACTED') ? 1 : 0 };
+}
+
+const BRAIN_REPLY: AuditContent = {
+  kind: 'brain_reply',
+  text: 'Done. The campaign is paused and will stay paused until you resume it. Its delivery over the last seven days is summarised in the thread.',
+  truncated: false,
+  originalLength: 137,
+  redactions: 0,
+};
+
+const DENIAL_EXPLANATION: AuditContent = {
+  kind: 'explanation',
+  text: 'The requested daily budget of 12,000 is above the workspace limit of 5,000, so the change was not applied. An administrator can raise the limit or approve an exception.',
+  truncated: false,
+  originalLength: 164,
+  redactions: 0,
+};
 
 const USERS = ['usr_amelia_frost', 'usr_dev_patel', 'usr_noor_haddad'];
 
@@ -126,7 +162,7 @@ function hashOf(rand: () => number): string {
  * some denied or failing), background metric syncs, policy checks and data access.
  * Sorted oldest first and chained by ingestion order like the real store.
  */
-export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedEventId: string } {
+export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedEventId: string; contents: Map<string, AuditContent> } {
   const rand = mulberry32(42);
   const pick = <T,>(items: readonly T[]): T => items[Math.floor(rand() * items.length)]!;
   const specs: Array<{ traceId: string; goalId?: string; threadId?: string; campaignId?: string; spans: SpanSpec[] }> = [];
@@ -147,7 +183,7 @@ export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedE
     const hub = { type: 'service' as const, id: 'proba-hub' };
     const tools = { type: 'service' as const, id: 'proba-tools' };
     const spans: SpanSpec[] = [
-      { key: 'cmd', service: 'proba-hub', action: 'command.received', category: 'command', actor, at: t0, durationMs: 18, details: { channel: 'web', commandType: 'send_message' } },
+      { key: 'cmd', service: 'proba-hub', action: 'command.received', category: 'command', actor, at: t0, durationMs: 18, details: { channel: 'web', commandType: 'send_message' }, content: userMessage(i) },
       { key: 'plan', parent: 'cmd', service: 'proba-brain', action: 'brain.plan_created', category: 'brain', actor: brain, at: t0 + 40, durationMs: 2100, details: { steps: 4 } },
       { key: 'llm', parent: 'plan', service: 'proba-brain', action: 'brain.llm_call', category: 'brain', actor: brain, at: t0 + 90, durationMs: 1750, cost: { tokensIn: 3120, tokensOut: 640, currency: 'USD', amount: 0.0214 }, details: { purpose: 'planning' } },
       { key: 'policy', parent: 'plan', service: 'proba-hub', action: 'policy.evaluated', category: 'policy', actor: hub, at: t0 + 2200, durationMs: 31, details: { policy: 'spend_limits' } },
@@ -161,7 +197,7 @@ export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedE
       );
     } else if (kind === 2) {
       spans.push(
-        { key: 'deny', parent: 'policy', service: 'proba-hub', action: 'policy.denied', category: 'policy', actor: hub, at: t0 + 2300, durationMs: 8, outcome: 'denied', risk: 'high', target: { type: 'campaign', id: campaign }, errorCode: 'budget_limit_exceeded', errorMessage: 'The requested daily budget is above the workspace limit.', details: { limit: 5000, requested: 12000 } },
+        { key: 'deny', parent: 'policy', service: 'proba-hub', action: 'policy.denied', category: 'policy', actor: hub, at: t0 + 2300, durationMs: 8, outcome: 'denied', risk: 'high', target: { type: 'campaign', id: campaign }, errorCode: 'budget_limit_exceeded', errorMessage: 'The requested daily budget is above the workspace limit.', details: { limit: 5000, requested: 12000 }, content: DENIAL_EXPLANATION },
         { key: 'done', parent: 'cmd', service: 'proba-hub', action: 'command.processed', category: 'command', actor: hub, at: t0 + 2400, durationMs: 5, outcome: 'denied' }
       );
     } else if (kind === 3) {
@@ -177,6 +213,7 @@ export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedE
     } else {
       spans.push(
         { key: 'tool', parent: 'policy', service: 'proba-tools', action: 'tool.executed', category: 'tool', actor: tools, at: t0 + 2300, durationMs: 780, risk: 'low', target: { type: 'campaign', id: campaign }, details: { tool: 'google_ads.pause_campaign' } },
+        ...(kind === 6 ? [{ key: 'reply', parent: 'tool', service: 'proba-brain', action: 'brain.reply_generated', category: 'brain' as const, actor: brain, at: t0 + 3000, durationMs: 150, content: BRAIN_REPLY }] : []),
         { key: 'done', parent: 'cmd', service: 'proba-hub', action: 'command.processed', category: 'command', actor: hub, at: t0 + 3200, durationMs: 6 }
       );
     }
@@ -210,6 +247,9 @@ export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedE
   }
 
   const events: AuditEventRecord[] = [];
+  const contents = new Map<string, AuditContent>();
+  // A separate generator so the text digests do not shift the rest of the fixture data.
+  const digestRand = mulberry32(99);
   for (const spec of specs) {
     const spanIds = new Map<string, string>();
     for (const s of spec.spans) spanIds.set(s.key, hex(rand, 16).replace(/^0+$/, 'a1b2c3d4e5f60718'));
@@ -217,9 +257,11 @@ export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedE
       const outcome = s.outcome ?? 'success';
       const parentSpanId = s.parent ? spanIds.get(s.parent) ?? '00f0f0f0f0f0f0f1' : undefined;
       const occurredAt = new Date(s.at).toISOString();
+      const eventId = uuid(rand);
+      if (s.content) contents.set(eventId, s.content);
       events.push({
         version: 1,
-        eventId: uuid(rand),
+        eventId,
         traceId: spec.traceId,
         spanId: spanIds.get(s.key)!,
         ...(parentSpanId ? { parentSpanId } : {}),
@@ -245,6 +287,7 @@ export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedE
         hash: '',
         ingestedAt: new Date(s.at + 250).toISOString(),
         schemaVersion: 1,
+        ...(s.content ? { hasContent: true as const, contentDigest: hex(digestRand, 64) } : {}),
       });
     }
   }
@@ -263,5 +306,5 @@ export function seedEvents(now: number): { events: AuditEventRecord[]; tamperedE
   const tampered = events.reduce((best, e) =>
     Math.abs(Date.parse(e.ingestedAt) - target) < Math.abs(Date.parse(best.ingestedAt) - target) ? e : best
   );
-  return { events, tamperedEventId: tampered.eventId };
+  return { events, tamperedEventId: tampered.eventId, contents };
 }

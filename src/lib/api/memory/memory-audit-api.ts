@@ -10,12 +10,14 @@ import type {
 } from '../port';
 import type {
   ApiSession,
+  AuditContent,
   AuditEventRecord,
   AuditOutcome,
   AuditRiskLevel,
   CampaignTotals,
   CampaignsResponse,
   ChainVerification,
+  EventContent,
   EventsPage,
   Facets,
   Granularity,
@@ -23,6 +25,7 @@ import type {
   MetricsTotals,
   PeriodComparison,
   SpanNode,
+  TraceContent,
   TraceSummary,
   TraceTree,
   TracesPage,
@@ -41,6 +44,12 @@ export interface InMemoryAuditApiOptions {
   events?: AuditEventRecord[];
   tamperedEventId?: string;
   metrics?: SeedMetricRow[];
+  /** Raw text by event id. Defaults to the fixture texts when the fixture events are used. */
+  contents?: Map<string, AuditContent>;
+  /** Whether the deployment serves raw text (AUDIT_CONTENT_ENABLED). Default true. */
+  contentEnabled?: boolean;
+  /** Events whose stored text no longer matches the digest the chain covers. */
+  unverifiedContentEventIds?: Set<string>;
 }
 
 const OUTCOME_SEVERITY: Record<AuditOutcome, number> = { success: 0, partial: 1, denied: 2, failure: 3 };
@@ -121,6 +130,7 @@ export class InMemoryAuditApi implements AuditApi {
   private readonly metrics: SeedMetricRow[];
   /** Exposed so tests can verify the integrity screen against a known broken record. */
   readonly tamperedEventId: string;
+  private readonly contents: Map<string, AuditContent>;
   /** Total calls per operation, for assertions. */
   readonly calls: Record<string, number> = {};
   failNext: ApiError | null = null;
@@ -131,6 +141,63 @@ export class InMemoryAuditApi implements AuditApi {
     this.events = options.events ?? seeded!.events;
     this.tamperedEventId = options.tamperedEventId ?? seeded?.tamperedEventId ?? '';
     this.metrics = options.metrics ?? seedMetrics(this.now());
+    this.contents = options.contents ?? seeded?.contents ?? new Map();
+  }
+
+  private get isAdmin(): boolean {
+    return (this.options.role ?? 'admin') === 'admin';
+  }
+
+  /** An event as the API returns it: never the text; `hasContent` only when the deployment serves it; the digest to administrators only. */
+  private expose(event: AuditEventRecord): AuditEventRecord {
+    const { hasContent, contentDigest, ...rest } = event;
+    const serves = this.options.contentEnabled !== false && hasContent === true;
+    return { ...rest, ...(serves ? { hasContent: true as const } : {}), ...(serves && this.isAdmin && contentDigest ? { contentDigest } : {}) };
+  }
+
+  private requireContentAccess(): void {
+    if (!this.isAdmin) {
+      throw new ApiError('forbidden', "Your account doesn't have access to this.", { status: 403, code: 'insufficient_role' });
+    }
+    if (this.options.contentEnabled === false) {
+      throw new ApiError('not_found', 'Raw text is not enabled on this deployment.', { status: 404, code: 'content_disabled' });
+    }
+  }
+
+  private toEventContent(event: AuditEventRecord, content: AuditContent): EventContent {
+    return {
+      eventId: event.eventId,
+      traceId: event.traceId,
+      spanId: event.spanId,
+      action: event.action,
+      occurredAt: event.occurredAt,
+      content: { ...content },
+      contentDigest: event.contentDigest ?? '0'.repeat(64),
+      verified: !this.options.unverifiedContentEventIds?.has(event.eventId),
+    };
+  }
+
+  async getEventContent(eventId: string, options?: CallOptions): Promise<EventContent> {
+    await this.enter('getEventContent', options);
+    this.requireContentAccess();
+    const event = this.events.find((e) => e.eventId === eventId);
+    const content = event ? this.contents.get(eventId) : undefined;
+    if (!event || !content) throw new ApiError('not_found', 'There is no raw text for this event.', { status: 404, code: 'not_found' });
+    return this.toEventContent(event, content);
+  }
+
+  async getTraceContent(traceId: string, options?: CallOptions): Promise<TraceContent> {
+    await this.enter('getTraceContent', options);
+    this.requireContentAccess();
+    const events = this.events
+      .filter((e) => e.traceId === traceId)
+      .sort((a, b) => (a.occurredAt < b.occurredAt ? -1 : a.occurredAt > b.occurredAt ? 1 : a.eventId < b.eventId ? -1 : 1));
+    if (events.length === 0) throw new ApiError('not_found', "We couldn't find what you were looking for.", { status: 404, code: 'not_found' });
+    const items = events.flatMap((e) => {
+      const content = this.contents.get(e.eventId);
+      return content ? [this.toEventContent(e, content)] : [];
+    });
+    return { traceId, items, truncated: false };
   }
 
   private async enter(name: string, callOptions?: CallOptions): Promise<void> {
@@ -208,7 +275,7 @@ export class InMemoryAuditApi implements AuditApi {
     const page = matches.slice(start, start + limit);
     const last = page[page.length - 1];
     return {
-      events: page.map((e) => ({ ...e })),
+      events: page.map((e) => this.expose(e)),
       nextCursor: last && start + limit < matches.length ? encodeCursor({ o: order, t: last.occurredAt, id: last.eventId }) : null,
       from: r.from === undefined ? null : new Date(r.from).toISOString(),
       to: r.to === undefined ? null : new Date(r.to).toISOString(),
@@ -221,7 +288,7 @@ export class InMemoryAuditApi implements AuditApi {
     await this.enter('getEvent', options);
     const event = this.events.find((e) => e.eventId === eventId);
     if (!event) throw new ApiError('not_found', "We couldn't find what you were looking for.", { status: 404, code: 'not_found' });
-    return { ...event };
+    return this.expose(event);
   }
 
   async listTraces(query: TimeRange & { limit?: number; cursor?: string }, options?: CallOptions): Promise<TracesPage> {

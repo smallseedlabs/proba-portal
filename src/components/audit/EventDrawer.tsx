@@ -12,6 +12,7 @@ import { Skeleton } from '../ui/feedback';
 import { Drawer } from '../ui/drawer';
 import { OutcomeBadge, RiskBadge } from './badges';
 import { CopyButton, ErrorPanel, Mono } from './common';
+import { EventContentSection } from './ContentPanel';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -101,6 +102,8 @@ function EventBody({ event }: { event: AuditEventRecord }) {
         <Row label="Hash"><Mono>{event.hash ?? '—'}</Mono></Row>
         <Row label="Previous hash"><Mono>{event.prevHash ?? 'None (start of chain)'}</Mono></Row>
       </dl>
+
+      <EventContentSection eventId={event.eventId} hasContent={event.hasContent === true} />
 
       <section aria-labelledby="raw-json-heading">
         <div className="mb-2 flex items-center justify-between gap-2">

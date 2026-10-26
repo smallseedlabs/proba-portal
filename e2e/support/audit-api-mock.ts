@@ -70,6 +70,11 @@ export async function mockAuditApi(page: Page, options: { role?: 'viewer' | 'adm
       if (path === '/v1/events') return send(route, 200, await s.searchEvents({ ...q, limit } as never));
       if (path === '/v1/facets') return send(route, 200, await s.getFacets(q as never));
       if (path === '/v1/traces') return send(route, 200, await s.listTraces({ ...q, limit }));
+      const content = path.match(/^\/v1\/(events|traces)\/([^/]+)\/content$/);
+      if (content) {
+        const id = decodeURIComponent(content[2]!);
+        return send(route, 200, content[1] === 'events' ? await s.getEventContent(id) : await s.getTraceContent(id));
+      }
       if (path.startsWith('/v1/traces/')) return send(route, 200, await s.getTrace(decodeURIComponent(path.split('/').pop()!)));
       if (path.startsWith('/v1/events/')) return send(route, 200, await s.getEvent(decodeURIComponent(path.split('/').pop()!)));
       if (path === '/v1/chain/verify') return send(route, 200, await s.verifyChain(q as never));

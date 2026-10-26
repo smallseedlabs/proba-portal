@@ -197,3 +197,67 @@ describe('HttpAuditApi logging', () => {
     }
   });
 });
+
+const EVENT_CONTENT = {
+  eventId: 'e1',
+  traceId: 't1',
+  spanId: 'a1a1a1a1a1a1a1a1',
+  action: 'command.received',
+  occurredAt: '2026-10-26T12:00:00.000Z',
+  content: { kind: 'user_message', text: 'Pause the retargeting campaign. Key: [REDACTED:api_key]', truncated: false, originalLength: 54, redactions: 1 },
+  contentDigest: 'a'.repeat(64),
+  verified: true,
+};
+
+describe('HttpAuditApi raw text', () => {
+  it('reads the text from the content routes with the ID token, and the text never appears in an address', async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) =>
+      String(url).includes('/traces/') ? json(200, { traceId: 't1', items: [EVENT_CONTENT], truncated: false }) : json(200, EVENT_CONTENT)
+    );
+    const { api } = make(fetchImpl as unknown as typeof fetch);
+    await expect(api.getEventContent('e/1')).resolves.toMatchObject({ content: { kind: 'user_message', redactions: 1 }, verified: true });
+    await expect(api.getTraceContent('t1')).resolves.toMatchObject({ items: [{ eventId: 'e1' }], truncated: false });
+    const urls = fetchImpl.mock.calls.map((c) => String((c as unknown as [string])[0]));
+    expect(urls).toEqual(['https://audit.acme.io/v1/events/e%2F1/content', 'https://audit.acme.io/v1/traces/t1/content']);
+    expect(urls.join(' ')).not.toContain('Pause');
+  });
+
+  it('keeps hasContent and the digest of an event, which carries no text', async () => {
+    const event = { ...(await new InMemoryAuditApi({ now: () => NOW }).searchEvents({ limit: 200 })).events.find((e) => e.hasContent)! };
+    expect(event.contentDigest).toMatch(/^[0-9a-f]{64}$/);
+    const fetchImpl = vi.fn(async () => json(200, event));
+    const got = await make(fetchImpl as unknown as typeof fetch).api.getEvent(event.eventId);
+    expect(got.hasContent).toBe(true);
+    expect(got.contentDigest).toBe(event.contentDigest);
+    expect(JSON.stringify(got)).not.toContain('"text"');
+  });
+
+  it('maps a refusal and a missing text to forbidden and not_found, keeping the API code', async () => {
+    const viewer = vi.fn(async () => json(403, { error: 'insufficient_role', message: 'x', traceId: 'tr' }));
+    await expect(make(viewer as unknown as typeof fetch).api.getEventContent('e1')).rejects.toMatchObject({ kind: 'forbidden', code: 'insufficient_role' });
+    const off = vi.fn(async () => json(404, { error: 'content_disabled', message: 'x', traceId: 'tr' }));
+    await expect(make(off as unknown as typeof fetch).api.getTraceContent('t1')).rejects.toMatchObject({ kind: 'not_found', code: 'content_disabled' });
+  });
+
+  it('rejects a text that does not have the documented shape instead of showing it', async () => {
+    const fetchImpl = vi.fn(async () => json(200, { ...EVENT_CONTENT, content: { kind: 'user_message', text: 5 } }));
+    await expect(make(fetchImpl as unknown as typeof fetch).api.getEventContent('e1')).rejects.toMatchObject({ kind: 'bad_response' });
+  });
+
+  it('never writes the text to the log, on success or on a bad response', async () => {
+    const entries: LogEntry[] = [];
+    setLogger(createLogger({ level: 'debug', sink: { write: (e) => entries.push(e) }, sessionId: 'sess' }));
+    try {
+      const ok = vi.fn(async () => json(200, EVENT_CONTENT, { 'X-Trace-Id': 'srv-1' }));
+      await make(ok as unknown as typeof fetch).api.getEventContent('e1');
+      const bad = vi.fn(async () => json(200, { ...EVENT_CONTENT, content: { ...EVENT_CONTENT.content, redactions: 'many' } }));
+      await make(bad as unknown as typeof fetch).api.getEventContent('e1').catch(() => undefined);
+      const line = JSON.stringify(entries);
+      expect(entries.length).toBeGreaterThan(1);
+      expect(line).not.toContain('Pause the retargeting');
+      expect(line).not.toContain('REDACTED');
+    } finally {
+      setLogger(createLogger({ level: 'silent' }));
+    }
+  });
+});

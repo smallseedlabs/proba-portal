@@ -25,7 +25,7 @@
     "screenshots": "playwright test --config playwright.screenshots.config.ts"
   },
   "dependencies": {
-    "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#v0.3.1",
+    "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#v0.3.3",
     "clsx": "^2.1.1",
     "firebase": "^12.19.0",
     "lucide-react": "^1.59.0",

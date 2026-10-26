@@ -152,3 +152,59 @@ test.describe('over the audit API', () => {
     expect(all).not.toContain(ACCOUNT.password);
   });
 });
+
+test.describe('raw text over the audit API', () => {
+  test('an administrator reads the text from the content route with the bearer token; nothing is logged or put in an address', async ({ page }) => {
+    const lines: string[] = [];
+    page.on('console', (m) => lines.push(m.text()));
+    const firebase = await mockFirebase(page);
+    const api = await mockAuditApi(page, { role: 'admin' });
+    await signInThroughNetwork(page, '#/traces');
+    await page.getByRole('link', { name: /command\.received/ }).first().click();
+    const panel = page.getByTestId('content-panel');
+    await expect(panel).toBeVisible();
+    const text = (await panel.getByTestId('content-text').first().innerText()).trim();
+    expect(text.length).toBeGreaterThan(10);
+
+    const content = api.requests.filter((r) => /\/content$/.test(r.path));
+    expect(content.map((r) => r.path)).toEqual([expect.stringMatching(/^\/v1\/traces\/[^/]+\/content$/)]);
+    expect(content[0]!.authorization).toBe(`Bearer ${firebase.issued.at(-1)}`);
+    expect(content[0]!.query).toEqual({});
+    // The text is in no address the browser or the API saw, and in no log line.
+    const needle = text.slice(0, 20);
+    expect(page.url()).not.toContain(encodeURIComponent(needle));
+    expect(api.requests.some((r) => r.path.includes(needle) || JSON.stringify(r.query).includes(needle))).toBe(false);
+    expect(lines.join('\n')).not.toContain(needle);
+    expect(lines.some((l) => l.includes('/content'))).toBe(true);
+  });
+
+  test('a viewer gets no panel and the portal never calls the content routes', async ({ page }) => {
+    await mockFirebase(page);
+    const api = await mockAuditApi(page, { role: 'viewer' });
+    await signInThroughNetwork(page, '#/traces');
+    await page.getByRole('link', { name: /command\.received/ }).first().click();
+    await expect(page.getByRole('tree', { name: 'Steps of this trace' })).toBeVisible();
+    await page.getByRole('tree').getByRole('button', { name: 'command.received', exact: true }).click();
+    await expect(page.getByRole('dialog').getByRole('heading', { name: 'Raw event' })).toBeVisible();
+    await expect(page.getByTestId('content-panel')).toHaveCount(0);
+    expect(api.requests.filter((r) => /\/content$/.test(r.path))).toEqual([]);
+  });
+
+  test('the panel is absent when the API answers that the deployment does not serve text', async ({ page }) => {
+    await mockFirebase(page);
+    await mockAuditApi(page, { role: 'admin' });
+    await page.route(`${API_ORIGIN}/v1/traces/*/content`, (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      return route.fulfill({
+        status: 404,
+        headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json', 'x-trace-id': 'off-ref' },
+        body: JSON.stringify({ error: 'content_disabled', message: 'Raw text is not enabled on this deployment.', traceId: 'off-ref' }),
+      });
+    });
+    await signInThroughNetwork(page, '#/traces');
+    await page.getByRole('link', { name: /command\.received/ }).first().click();
+    await expect(page.getByRole('tree', { name: 'Steps of this trace' })).toBeVisible();
+    await expect(page.getByTestId('content-panel')).toHaveCount(0);
+    await expect(page.getByText('Raw text')).toHaveCount(0);
+  });
+});

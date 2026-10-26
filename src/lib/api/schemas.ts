@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type {
   AuditActorType,
+  AuditContent,
   AuditCategory,
   AuditOutcome,
   AuditRiskLevel,
@@ -69,10 +70,57 @@ export const storedAuditEventSchema = z.object({
   hash: z.string().nullable(),
   ingestedAt: isoDate,
   schemaVersion: z.number(),
+  // Protocol 0.3.3. The API never returns the text itself on these routes: `hasContent` says it exists
+  // (administrators read it from the content routes) and `contentDigest` (administrators only) is the
+  // SHA-256 of the text, which the hash chain covers.
+  hasContent: z.literal(true).optional(),
+  contentDigest: z.string().optional(),
 });
 
-/** An audit event as the API returns it: the protocol's StoredAuditEvent (the hash may be absent on legacy records). */
-export type AuditEventRecord = Omit<StoredAuditEvent, 'hash'> & { hash: string | null };
+/**
+ * An audit event as the API returns it: the protocol's StoredAuditEvent without the raw text (`content` and
+ * `contentDigest` are replaced by `hasContent` and, for administrators, the digest), and the hash may be
+ * absent on legacy records.
+ */
+export type AuditEventRecord = Omit<StoredAuditEvent, 'hash' | 'content' | 'contentDigest'> & {
+  hash: string | null;
+  hasContent?: true;
+  contentDigest?: string;
+};
+
+/**
+ * The raw text of one event (protocol AuditContent) as the administrator-only content routes return it.
+ * `kind` is an open set, so it is a plain string; the length bound is the protocol's 16384.
+ */
+export const auditContentSchema = z.object({
+  kind: z.string(),
+  text: z.string(),
+  truncated: z.boolean(),
+  originalLength: z.number(),
+  redactions: z.number(),
+});
+export type { AuditContent };
+
+export const eventContentSchema = z.object({
+  eventId: z.string(),
+  traceId: z.string(),
+  spanId: z.string(),
+  action: z.string(),
+  occurredAt: isoDate,
+  content: auditContentSchema,
+  contentDigest: z.string(),
+  /** False when the stored text no longer matches the digest the hash chain covers. */
+  verified: z.boolean(),
+});
+export type EventContent = z.infer<typeof eventContentSchema>;
+
+export const traceContentSchema = z.object({
+  traceId: z.string(),
+  items: z.array(eventContentSchema),
+  /** True when the trace has more events than were loaded. */
+  truncated: z.boolean(),
+});
+export type TraceContent = z.infer<typeof traceContentSchema>;
 
 // Compile-time guard: if the pinned protocol type and this schema drift apart, the build fails.
 type Assert<T extends true> = T;

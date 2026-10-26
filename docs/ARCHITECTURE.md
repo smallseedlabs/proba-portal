@@ -30,7 +30,7 @@ production build (including the Docker build) and **fails the build** if the in-
 its fixture data, the browser-test configuration, or test-style wording is in the output.
 
 `HttpAuditApi` validates every response with zod schemas (`src/lib/api/schemas.ts`), whose event
-shape is tied at compile time to `StoredAuditEvent` from `@smallseedlabs/proba-protocol` v0.3.1
+shape is tied at compile time to `StoredAuditEvent` from `@smallseedlabs/proba-protocol` v0.3.3
 (imported as types only). All failures are `ApiError`s with a `kind` the screens present in plain
 language, with the server's trace id as a "Reference" to quote to support.
 
@@ -78,19 +78,40 @@ edits replace the history entry; opening a trace pushes one.
 is a valid http(s) address, the sidebar gets a **Memory** entry that opens it in a new tab. When it is
 absent there is no entry, no route and no placeholder.
 
-## Trace View and the future `content` panel
+## Raw text (the Content panel)
 
-Audit events will later carry an optional, administrator-only `content` field (raw event text). It
-is **not built yet**. The page is arranged so it can be added without reshaping anything:
+Since protocol v0.3.3 an audit event can carry the raw text of what was said (`content`: the person's
+message, the reply, an explanation). The audit API stores it apart from the event, serves it to
+**administrators only**, and only when the deployment sets `AUDIT_CONTENT_ENABLED=true`. The portal
+follows those rules; the server enforces them regardless of the UI.
 
-* `TraceView` renders an ordered list of sections (`TRACE_SECTIONS` in `src/components/views/TraceView.tsx`):
-  summary, notices, steps. A content panel is one more entry (and its component), shown only when
-  the session role is `admin` and the trace's events carry `content`.
-* The event schema (`storedAuditEventSchema`) currently drops unknown fields, so a server that adds
-  `content` early changes nothing in the UI. When it ships: add `content` as an optional field to the
-  schema (the compile-time check against the protocol type will say when the protocol has it),
-  read it in the new section, and keep it admin-only. The server should also omit it for viewers.
-* The logger redacts any field named `content`, so raw text cannot leak into logs by accident.
+How the API exposes it (proba-audit `docs/openapi.yaml`):
+
+* Event routes never carry the text. An event says `hasContent: true`, and administrators also get its
+  `contentDigest` (SHA-256 of the text, which the hash chain covers). Both are kept by the portal's
+  event schema.
+* `GET /v1/events/{eventId}/content` and `GET /v1/traces/{traceId}/content` return the text
+  (`{ content: { kind, text, truncated, originalLength, redactions }, contentDigest, verified }`).
+  Viewers get `403`; an event without text, or a deployment that does not serve text, gets `404`
+  (`content_disabled`). Every such read is itself recorded by the API (`audit.event_viewed` /
+  `audit.trace_viewed` with `contentIncluded: true`).
+
+What the portal does:
+
+* `TraceView` has a `content` entry in `TRACE_SECTIONS` (`TraceContentSection`) and `EventDrawer` shows
+  `EventContentSection` for an event that has text. Both use `ContentBlock` (`src/components/audit/ContentPanel.tsx`):
+  the kind in words, the text as plain text (never markup) in a keyboard-focusable region, **Copy text**,
+  the length (`n of originalLength characters` plus a notice when it was cut), how many secrets were masked,
+  and whether the text still matches the digest the chain covers (a mismatch is shown as an alert).
+* It is **hidden entirely** (no heading, no placeholder) for viewers, for an event without text, and when
+  the API answers `403` or `404`. For viewers the portal does not call the content routes at all
+  (`useCanReadContent` is false), so no audited read is created. Other failures show a retry.
+* The text is only ever fetched by id in the path, held in component state and rendered. It is never put
+  in an address, in browser storage, in a log entry (the logger records method, path, status and timing,
+  and redacts any field named `content`) or in an error message. Responses that do not match the schema
+  are rejected rather than shown.
+* The text is fetched when an administrator opens the trace or the event, so each such view is an audited
+  read by design.
 
 ## Logging
 

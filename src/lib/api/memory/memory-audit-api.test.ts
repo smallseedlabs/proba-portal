@@ -138,3 +138,37 @@ describe('in-memory audit source', () => {
     await expect(api.getSession()).resolves.toMatchObject({ role: 'admin' });
   });
 });
+
+describe('in-memory audit source: raw text', () => {
+  const withText = async (api: InMemoryAuditApi) => (await api.searchEvents({ limit: 200 })).events.filter((e) => e.hasContent);
+
+  it('says which events have text and shows the digest to administrators only', async () => {
+    const admin = await withText(make({ role: 'admin' }));
+    const viewer = await withText(make({ role: 'viewer' }));
+    expect(admin.length).toBeGreaterThan(5);
+    expect(admin.every((e) => /^[0-9a-f]{64}$/.test(e.contentDigest ?? ''))).toBe(true);
+    expect(viewer.length).toBe(admin.length);
+    expect(viewer.every((e) => e.contentDigest === undefined)).toBe(true);
+    expect(JSON.stringify(await make().searchEvents({ limit: 200 }))).not.toContain('"text"');
+  });
+
+  it('serves the text of one event and of a trace to administrators', async () => {
+    const api = make();
+    const [first] = await withText(api);
+    const one = await api.getEventContent(first!.eventId);
+    expect(one.content.text.length).toBeGreaterThan(0);
+    expect(one.verified).toBe(true);
+    const trace = await api.getTraceContent(first!.traceId);
+    expect(trace.items.map((i) => i.eventId)).toContain(first!.eventId);
+  });
+
+  it('refuses viewers, and answers not found without text or when the deployment does not serve it', async () => {
+    const [first] = await withText(make());
+    await expect(make({ role: 'viewer' }).getEventContent(first!.eventId)).rejects.toMatchObject({ kind: 'forbidden', status: 403 });
+    await expect(make({ role: 'viewer' }).getTraceContent(first!.traceId)).rejects.toMatchObject({ kind: 'forbidden' });
+    await expect(make().getEventContent('00000000-0000-4000-8000-000000000000')).rejects.toMatchObject({ kind: 'not_found' });
+    const off = make({ contentEnabled: false });
+    await expect(off.getEventContent(first!.eventId)).rejects.toMatchObject({ kind: 'not_found', code: 'content_disabled' });
+    expect((await off.searchEvents({ limit: 200 })).events.some((e) => e.hasContent)).toBe(false);
+  });
+});

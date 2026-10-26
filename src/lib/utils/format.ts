@@ -91,3 +91,19 @@ export function initials(name: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
+
+/**
+ * Name to show for a workspace. Uses the name the API provides when there is one;
+ * otherwise turns the id into a readable name (`seedbed` -> `Seedbed`,
+ * `ws_acme-labs` -> `Acme Labs`). Falls back to the id if nothing readable is left.
+ */
+export function workspaceDisplayName(workspace: { workspaceId: string; workspaceName?: string }): string {
+  const named = workspace.workspaceName?.trim();
+  if (named) return named;
+  const words = workspace.workspaceId
+    .replace(/^ws[_-]/i, '')
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  return words.length > 0 ? words.join(' ') : workspace.workspaceId;
+}

@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Top bar shows the workspace name (for example "Seedbed") instead of the raw workspace id; uses the API's `workspaceName` when present.
 - Proba Insights web application: sign-in (Firebase), Audit Explorer, Trace View, Integrity and
   Analytics screens, and an optional Memory entry behind the `MEMORY_URL` flag.
 - Typed `AuditApi` port with an HTTP adapter for the audit API `/v1` (protocol v0.3.3, types only; includes the content routes, `hasContent` and `contentDigest`).

@@ -33,6 +33,19 @@ test('main screens', async ({ page }) => {
   await page.getByRole('link', { name: /command\.received/ }).first().click();
   await expect(page.getByRole('tree', { name: 'Steps of this trace' })).toBeVisible();
   await page.screenshot({ path: `${OUT}/05-trace-view.png` });
+  // The administrator-only raw text of the steps, below the step list.
+  const panel = page.getByTestId('content-panel');
+  await expect(panel).toBeVisible();
+  await panel.scrollIntoViewIfNeeded();
+  await panel.screenshot({ path: `${OUT}/10-trace-raw-text.png` });
+  await panel.getByRole('button', { name: /^Open step/ }).first().click();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Raw text', level: 3 })).toBeVisible();
+  await expect(page.getByRole('dialog').getByTestId('content-text')).toBeVisible();
+  // A tall window shows the whole record, with its raw text, in one picture.
+  await page.setViewportSize({ width: 1440, height: 1250 });
+  await page.screenshot({ path: `${OUT}/11-event-raw-text.png` });
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await goTo(page, '#/integrity');
   await page.getByRole('button', { name: 'Verify integrity' }).click();
@@ -54,4 +67,20 @@ test('main screens', async ({ page }) => {
   await goTo(page, '#/explorer');
   await expect(page.getByRole('table', { name: 'Audit events' })).toBeVisible();
   await page.screenshot({ path: `${OUT}/09-explorer-mobile.png` });
+});
+
+test('the same trace for a viewer has no raw text', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => window.sessionStorage.setItem('proba.e2e.role', 'viewer'));
+  await mockFirebase(page);
+  await page.goto('/');
+  await page.getByLabel('Work email').fill(ACCOUNT.email);
+  await page.getByLabel('Password', { exact: true }).fill(ACCOUNT.password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await goTo(page, '#/traces');
+  await expect(page.getByRole('table', { name: 'Recent traces' })).toBeVisible();
+  await page.getByRole('link', { name: /command\.received/ }).first().click();
+  await expect(page.getByRole('tree', { name: 'Steps of this trace' })).toBeVisible();
+  await expect(page.getByTestId('content-panel')).toHaveCount(0);
+  await page.screenshot({ path: `${OUT}/12-trace-view-viewer.png` });
 });

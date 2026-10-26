@@ -1,0 +1,32 @@
+# Runs Proba Insights in a container, pointed at an audit API.
+#
+#   cp .env.example .env        # fill in the Firebase web configuration
+#   docker compose up --build
+#
+# The portal is served on http://localhost:${PORTAL_HOST_PORT:-3410}. It talks to the audit API at
+# API_BASE_URL, which defaults to the alternate host port the local Proba stack uses for it
+# (http://localhost:3400; see proba/local, `./up.sh --portal`, which wires both together).
+# Host ports here are deliberately not the services' defaults, so this can run next to the
+# other Proba projects.
+services:
+  portal:
+    build:
+      context: .
+    image: proba-portal:local
+    container_name: proba-portal
+    ports:
+      - "${PORTAL_HOST_PORT:-3410}:8080"
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:3400}
+      MEMORY_URL: ${MEMORY_URL:-}
+      FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
+      FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped

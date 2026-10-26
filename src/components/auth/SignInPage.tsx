@@ -43,10 +43,13 @@ export function SignInPage({
   auth,
   onSignedIn,
   notice,
+  unavailable = false,
 }: {
   auth: AuthClient;
   onSignedIn: (session: Session) => void;
   notice?: string | null;
+  /** Sign-in is not configured for this environment: say so instead of failing after the first click. */
+  unavailable?: boolean;
 }) {
   const [mode, setMode] = useState<'sign-in' | 'reset'>('sign-in');
   const [email, setEmail] = useState('');
@@ -59,7 +62,7 @@ export function SignInPage({
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const ids = { email: useId(), password: useId(), emailError: useId(), passwordError: useId(), resetEmail: useId(), resetEmailError: useId() };
-  const busy = pending !== null;
+  const busy = pending !== null || unavailable;
 
   const switchMode = (next: 'sign-in' | 'reset') => {
     setMode(next);
@@ -192,6 +195,11 @@ export function SignInPage({
                 <p className="mt-2 text-body text-muted-foreground">Use your work account to open the audit trail and analytics for your workspace.</p>
               </div>
 
+              {unavailable && (
+                <Callout tone="warning" role="status" className="mb-6" title="Sign-in isn’t available yet">
+                  Sign-in hasn’t been set up for this environment. Ask your workspace administrator to finish the setup.
+                </Callout>
+              )}
               {notice && !formError && (
                 <Callout tone="info" role="status" className="mb-6">
                   {notice}

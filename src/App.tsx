@@ -119,7 +119,7 @@ export default function App() {
   if (phase.name === 'starting' || phase.name === 'connecting') return <Splash />;
 
   if (phase.name === 'signed-out') {
-    return <SignInPage auth={auth} onSignedIn={handleSignedIn} notice={phase.notice} />;
+    return <SignInPage auth={auth} onSignedIn={handleSignedIn} notice={phase.notice} unavailable={!auth.configured} />;
   }
 
   if (phase.name === 'no-access') {

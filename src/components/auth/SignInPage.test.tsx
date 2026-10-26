@@ -136,4 +136,15 @@ describe('SignInPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Too many sign-in attempts/);
   });
+
+  it('explains when sign-in has not been set up and keeps the form from being used', () => {
+    const auth: AuthClient = {
+      signIn: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(),
+      restore: vi.fn().mockResolvedValue(null), signOut: vi.fn(),
+    };
+    render(<SignInPage auth={auth} onSignedIn={vi.fn()} unavailable />);
+    expect(screen.getByRole('status')).toHaveTextContent('Sign-in isn’t available yet');
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+    expect(screen.getByLabelText('Work email')).toBeDisabled();
+  });
 });

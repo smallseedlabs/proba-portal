@@ -25,7 +25,7 @@ export function AppShell() {
   }, [route.section, route.id]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="relative flex h-screen overflow-hidden bg-background">
       <a
         href="#main-content"
         onClick={(e) => {

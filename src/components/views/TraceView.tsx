@@ -198,9 +198,96 @@ function RelatedList({ label, ids, href }: { label: string; ids: string[]; href:
   );
 }
 
+function TraceSummary({ trace: data }: TraceSectionProps) {
+  const { mode } = useTimeMode();
+  return (
+          <Card>
+    <CardBody className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Trace ID</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="break-all font-mono text-body font-medium text-foreground" data-testid="trace-id">{data.traceId}</span>
+            <CopyButton value={data.traceId} label="trace ID" />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <OutcomeBadge outcome={data.outcome} />
+          <RiskBadge risk={data.riskLevel} />
+        </div>
+      </div>
+      <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Started</dt>
+          <dd className="mt-1 text-body text-foreground"><time dateTime={data.startedAt}>{formatTimestamp(data.startedAt, mode)}</time></dd>
+        </div>
+        <div>
+          <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Duration</dt>
+          <dd className="mt-1 text-body text-foreground">{formatDuration(data.durationMs)}</dd>
+        </div>
+        <div>
+          <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Steps</dt>
+          <dd className="mt-1 text-body text-foreground">{data.eventCount.toLocaleString('en-GB')}</dd>
+        </div>
+        <div>
+          <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Audit trail</dt>
+          <dd className="mt-1 text-body">
+            <a
+              href={routeHref({ section: 'explorer', query: { traceId: data.traceId, range: 'any' } })}
+              className="inline-flex items-center gap-1 rounded-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Layers className="h-4 w-4" aria-hidden="true" />
+              Open in Audit Explorer
+            </a>
+          </dd>
+        </div>
+      </dl>
+      {(data.related.goalIds.length > 0 || data.related.threadIds.length > 0 || data.related.campaignIds.length > 0) && (
+        <dl className="grid gap-x-8 gap-y-4 border-t pt-4 sm:grid-cols-3">
+          <RelatedList label="Goals" ids={data.related.goalIds} href={(id) => routeHref({ section: 'explorer', query: { goalId: id, range: 'any' } })} />
+          <RelatedList label="Threads" ids={data.related.threadIds} href={(id) => routeHref({ section: 'explorer', query: { threadId: id, range: 'any' } })} />
+          <RelatedList label="Campaigns" ids={data.related.campaignIds} href={(id) => routeHref({ section: 'analytics', query: { campaignId: id } })} />
+        </dl>
+      )}
+    </CardBody>
+  </Card>
+  );
+}
+
+function TraceNotices({ trace: data }: TraceSectionProps) {
+  return (
+    <>
+          {data.truncated && (
+        <Callout tone="warning" title="This trace is longer than what can be shown" role="status">
+          The first {data.eventCount.toLocaleString('en-GB')} steps are listed. Use Audit Explorer with this trace ID to page through every event.
+        </Callout>
+      )}
+    </>
+  );
+}
+
+function TraceSteps({ trace, onOpenEvent }: TraceSectionProps) {
+  return <Timeline trace={trace} onOpen={onOpenEvent} />;
+}
+
+interface TraceSectionProps {
+  trace: TraceTree;
+  onOpenEvent: (eventId: string) => void;
+}
+
+/**
+ * The sections of the trace page, top to bottom. A new section (for example a panel with the raw
+ * content of a step, shown to administrators only) is one more entry here plus its component; the
+ * data it needs arrives with the trace or the event, and nothing else on this page changes.
+ */
+const TRACE_SECTIONS: Array<{ id: string; Section: (props: TraceSectionProps) => JSX.Element }> = [
+  { id: 'summary', Section: TraceSummary },
+  { id: 'notices', Section: TraceNotices },
+  { id: 'steps', Section: TraceSteps },
+];
+
 export function TraceView({ traceId }: { traceId: string }) {
   const api = useApi();
-  const { mode } = useTimeMode();
   const [route, navigate] = useRoute();
   const trace = useApiQuery(`trace:${traceId}`, (signal) => api.getTrace(traceId, { signal }));
   const eventId = route.query.get('event');
@@ -234,64 +321,9 @@ export function TraceView({ traceId }: { traceId: string }) {
         <TraceSkeleton />
       ) : (
         <>
-          <Card>
-            <CardBody className="space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Trace ID</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="break-all font-mono text-body font-medium text-foreground" data-testid="trace-id">{data.traceId}</span>
-                    <CopyButton value={data.traceId} label="trace ID" />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <OutcomeBadge outcome={data.outcome} />
-                  <RiskBadge risk={data.riskLevel} />
-                </div>
-              </div>
-              <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Started</dt>
-                  <dd className="mt-1 text-body text-foreground"><time dateTime={data.startedAt}>{formatTimestamp(data.startedAt, mode)}</time></dd>
-                </div>
-                <div>
-                  <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Duration</dt>
-                  <dd className="mt-1 text-body text-foreground">{formatDuration(data.durationMs)}</dd>
-                </div>
-                <div>
-                  <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Steps</dt>
-                  <dd className="mt-1 text-body text-foreground">{data.eventCount.toLocaleString('en-GB')}</dd>
-                </div>
-                <div>
-                  <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Audit trail</dt>
-                  <dd className="mt-1 text-body">
-                    <a
-                      href={routeHref({ section: 'explorer', query: { traceId: data.traceId, range: 'any' } })}
-                      className="inline-flex items-center gap-1 rounded-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <Layers className="h-4 w-4" aria-hidden="true" />
-                      Open in Audit Explorer
-                    </a>
-                  </dd>
-                </div>
-              </dl>
-              {(data.related.goalIds.length > 0 || data.related.threadIds.length > 0 || data.related.campaignIds.length > 0) && (
-                <dl className="grid gap-x-8 gap-y-4 border-t pt-4 sm:grid-cols-3">
-                  <RelatedList label="Goals" ids={data.related.goalIds} href={(id) => routeHref({ section: 'explorer', query: { goalId: id, range: 'any' } })} />
-                  <RelatedList label="Threads" ids={data.related.threadIds} href={(id) => routeHref({ section: 'explorer', query: { threadId: id, range: 'any' } })} />
-                  <RelatedList label="Campaigns" ids={data.related.campaignIds} href={(id) => routeHref({ section: 'analytics', query: { campaignId: id } })} />
-                </dl>
-              )}
-            </CardBody>
-          </Card>
-
-          {data.truncated && (
-            <Callout tone="warning" title="This trace is longer than what can be shown" role="status">
-              The first {data.eventCount.toLocaleString('en-GB')} steps are listed. Use Audit Explorer with this trace ID to page through every event.
-            </Callout>
-          )}
-
-          <Timeline trace={data} onOpen={openEvent} />
+          {TRACE_SECTIONS.map(({ id, Section }) => (
+            <Section key={id} trace={data} onOpenEvent={openEvent} />
+          ))}
         </>
       )}
 

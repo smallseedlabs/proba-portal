@@ -113,6 +113,16 @@ export class HttpAuditApi implements AuditApi {
     throw error;
   }
 
+  private refreshing: Promise<string> | null = null;
+
+  /** Several requests rejected at once share one refresh instead of each asking for a new token. */
+  private refreshToken(): Promise<string> {
+    this.refreshing ??= this.options.getToken(true).finally(() => {
+      this.refreshing = null;
+    });
+    return this.refreshing;
+  }
+
   private async get<S extends z.ZodTypeAny>(
     path: string,
     schema: S,
@@ -130,7 +140,7 @@ export class HttpAuditApi implements AuditApi {
     if (response.status === 401) {
       // The token may simply have expired: refresh it once and retry.
       try {
-        token = await this.options.getToken(true);
+        token = await this.refreshToken();
       } catch {
         throw new ApiError('unauthenticated', MESSAGES.unauthenticated, { status: 401 });
       }

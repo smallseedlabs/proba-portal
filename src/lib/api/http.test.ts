@@ -148,3 +148,23 @@ describe('HttpAuditApi', () => {
     expect((await api.verifyChain({ from, to: new Date(NOW).toISOString() })).ok).toBe(true);
   });
 });
+
+describe('HttpAuditApi token refresh', () => {
+  it('shares one refresh between requests rejected at the same time', async () => {
+    const seen: string[] = [];
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const auth = (init?.headers as Record<string, string>).Authorization;
+      seen.push(auth);
+      if (auth === 'Bearer token') return json(401, { error: 'unauthenticated', message: 'expired' });
+      return json(200, SESSION);
+    }) as unknown as typeof fetch;
+    const getToken = vi.fn(async (force?: boolean) => {
+      if (force) await new Promise((r) => setTimeout(r, 10));
+      return force ? 'fresh-token' : 'token';
+    });
+    const { api } = make(fetchImpl, getToken);
+    await Promise.all([api.getSession(), api.getSession(), api.getSession()]);
+    expect(getToken.mock.calls.filter(([force]) => force)).toHaveLength(1);
+    expect(seen.filter((a) => a === 'Bearer fresh-token')).toHaveLength(3);
+  });
+});

@@ -80,11 +80,11 @@ test.describe('Analytics', () => {
 });
 
 test.describe('Navigation', () => {
-  test('shows the Memory entry only because the build configures it, and opens it in a new tab', async ({ page }) => {
+  test('shows the memory screens only because the build configures them, and they stay inside the app', async ({ page }) => {
     await signIn(page);
-    const link = page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /Memory/ });
-    await expect(link).toHaveAttribute('href', 'https://memory.example.com/');
-    await expect(link).toHaveAttribute('target', '_blank');
+    const link = page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'Memory Explorer' });
+    await expect(link).toHaveAttribute('href', '#/memory');
+    await expect(link).not.toHaveAttribute('target', '_blank');
   });
 
   test('moves between every screen and keeps the page title in step', async ({ page }) => {

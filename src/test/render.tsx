@@ -4,6 +4,8 @@ import type { ReactElement } from 'react';
 import { vi } from 'vitest';
 import { InMemoryAuditApi, type InMemoryAuditApiOptions } from '../lib/api/memory/memory-audit-api';
 import type { AuditApi } from '../lib/api/port';
+import { InMemoryMemoryApi, type InMemoryMemoryApiOptions } from '../lib/memory/in-memory/in-memory-memory-api';
+import type { MemoryApi } from '../lib/memory/port';
 import type { ApiSession } from '../lib/api/schemas';
 import { ApiProvider } from '../state/api';
 
@@ -13,15 +15,19 @@ export function fixtureApi(options: InMemoryAuditApiOptions = {}): InMemoryAudit
   return new InMemoryAuditApi({ now: () => NOW, ...options });
 }
 
+export function fixtureMemoryApi(options: InMemoryMemoryApiOptions = {}): InMemoryMemoryApi {
+  return new InMemoryMemoryApi({ now: () => NOW, ...options });
+}
+
 export function renderWithApi(
   ui: ReactElement,
   {
     api = fixtureApi(),
     role = 'admin',
-    memoryUrl = null,
+    memory = null,
     onSessionExpired = vi.fn(),
     onSignOut = vi.fn(),
-  }: { api?: AuditApi; role?: ApiSession['role']; memoryUrl?: string | null; onSessionExpired?: () => void; onSignOut?: () => void } = {}
+  }: { api?: AuditApi; role?: ApiSession['role']; memory?: MemoryApi | null; onSessionExpired?: () => void; onSignOut?: () => void } = {}
 ) {
   const access: ApiSession = { subject: 's', email: 'amelia.frost@northwind.example', role, workspaceId: 'ws_northwind' };
   const result = render(
@@ -29,12 +35,12 @@ export function renderWithApi(
       api={api}
       user={{ id: 'u', email: access.email, name: 'Amelia Frost' }}
       access={access}
-      memoryUrl={memoryUrl}
+      memory={memory}
       onSessionExpired={onSessionExpired}
       onSignOut={onSignOut}
     >
       {ui}
     </ApiProvider>
   );
-  return { ...result, api, onSessionExpired, onSignOut };
+  return { ...result, api, memory, onSessionExpired, onSignOut };
 }

@@ -22,7 +22,6 @@ test.describe('over the audit API', () => {
     expect(events.authorization).toBe(`Bearer ${firebase.issued[0]}`);
     expect(Number(events.query.limit)).toBeGreaterThan(0);
     expect(events.query.from).toBeTruthy();
-    await expect(page.getByRole('link', { name: /Memory/ })).toHaveCount(0);
   });
 
   test('refreshes the token once and retries when the API answers 401', async ({ page }) => {

@@ -19,7 +19,7 @@
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:bundle && npm run test:e2e",
     "build:e2e": "VITE_API_ADAPTER=memory VITE_API_BASE_URL=http://127.0.0.1:3998 VITE_MEMORY_URL=https://memory.example.com VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e",
     "preview:e2e": "vite preview --outDir dist-e2e --port 4190 --strictPort",
-    "build:e2e-http": "VITE_API_ADAPTER=http VITE_API_BASE_URL=http://127.0.0.1:3998 VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e-http",
+    "build:e2e-http": "VITE_API_ADAPTER=http VITE_API_BASE_URL=http://127.0.0.1:3998 VITE_MEMORY_URL=http://127.0.0.1:3997 VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e-http",
     "preview:e2e-http": "vite preview --outDir dist-e2e-http --port 4191 --strictPort",
     "check:bundle": "node scripts/check-production-bundle.mjs",
     "screenshots": "playwright test --config playwright.screenshots.config.ts"

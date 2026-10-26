@@ -11,6 +11,9 @@ browser sits behind an interface with adapters chosen by configuration.
                      │  screens ──► AuditApi (port)         │  GET /v1/*  + Bearer <ID token>
                      │                   ├─ HttpAuditApi ───┼──────────────────────────────►  audit API
                      │                   └─ InMemoryAuditApi│  (browser-test builds only)
+                     │  memory screens ─► MemoryApi (port)  │  GET|POST /v1/*  + Bearer <ID token>
+                     │                   ├─ HttpMemoryApi ──┼──────────────────────────────►  memory API
+                     │                   └─ InMemoryMemoryApi  (only if MEMORY_URL is set; tests only)
                      │  Logger ──► LogSink (JSON lines)     │
                      └──────────────────────────────────────┘
 ```
@@ -20,6 +23,7 @@ browser sits behind an interface with adapters chosen by configuration.
 | Port | Production adapter | Other adapters | Chosen by |
 | --- | --- | --- | --- |
 | `AuditApi` (`src/lib/api/port.ts`) | `HttpAuditApi` | `InMemoryAuditApi`, compiled into browser-test builds only | build flag `VITE_API_ADAPTER` (`http` default, `memory` for browser tests) |
+| `MemoryApi` (`src/lib/memory/port.ts`) | `HttpMemoryApi`, created only when `MEMORY_URL` is set | `InMemoryMemoryApi`, compiled into browser-test builds only (same flag as the audit one) | `MEMORY_URL`; `VITE_API_ADAPTER` in tests |
 | `AuthClient` (`src/lib/auth/types.ts`) | `FirebaseAuthClient`, over an `IdentityProvider` seam (lazy-loaded Firebase SDK) | a fake in unit tests | whether the Firebase web config is complete |
 | `LogSink` (`src/lib/log`) | `ConsoleJsonSink` | `NullSink` | `LOG_SINK` |
 
@@ -28,6 +32,11 @@ loaded through a dynamic import guarded by `__IN_MEMORY_API__`, a constant Vite 
 time, so every other build drops it. `scripts/check-production-bundle.mjs` runs after every
 production build (including the Docker build) and **fails the build** if the in-memory adapter,
 its fixture data, the browser-test configuration, or test-style wording is in the output.
+
+Both HTTP adapters sit on one transport (`src/lib/api/transport.ts`): bearer token, one shared token refresh after a 401,
+HTTP status to `ApiError` kind, schema validation of every response, and logging that records paths, query and body
+field names, status and trace id but never a token, a query value or a request body (a memory question is sent as a POST
+body and never appears in an address or a log line).
 
 `HttpAuditApi` validates every response with zod schemas (`src/lib/api/schemas.ts`), whose event
 shape is tied at compile time to `StoredAuditEvent` from `@smallseedlabs/proba-protocol` v0.3.3
@@ -74,9 +83,30 @@ edits replace the history entry; opening a trace pushes one.
 
 ## Feature flag: Memory
 
-`MEMORY_URL` (runtime) / `VITE_MEMORY_URL` (build) holds the address of the memory console. When it
-is a valid http(s) address, the sidebar gets a **Memory** entry that opens it in a new tab. When it is
-absent there is no entry, no route and no placeholder.
+`MEMORY_URL` (runtime) / `VITE_MEMORY_URL` (build) holds the address of the **memory API** (proba-memory, `apps/memory-api`). When it
+is a valid http(s) address, the app creates a `MemoryApi` client and the sidebar gets a **Memory** group with four screens. When it is
+absent there is no client, no entry, no route (a memory address shows the Audit Explorer) and no request.
+
+| Screen | Route | Reads | Who |
+| --- | --- | --- | --- |
+| Memory Explorer | `#/memory?q=&category=&status=&source=` | `GET /v1/memories` (newest first, cursor paging) or, with a question, `POST /v1/memories/search` | everyone; `status` other than active is an administrator's filter |
+| Memory Detail | `#/memory/<id>` | `GET /v1/memories/{id}` (memory and links); the replacement history follows `supersedesId` back and `supersedes` links forward (bounded, cycle-safe, stops where a memory is not readable); `GET /v1/memories/{id}/retrievals` | everyone; the retrieval history and the extraction model only for administrators |
+| Retrieval Inspector | `#/retrievals/<id>` | `GET /v1/retrievals/{id}`, or `POST /v1/memories/search` with `includeCandidates` | administrators |
+| Scoring profiles | `#/profiles` | `GET /v1/profiles` (the service adds each profile's configuration for administrators) | everyone; read-only |
+| Jobs | `#/jobs` | `GET /v1/jobs/runs` | administrators |
+
+Who may see what is decided by the memory API from the token (`403 insufficient_role`, viewers get active memories only); the portal
+additionally does not ask for what a viewer cannot have, so a viewer never causes a refused request. The role shown in the portal
+comes from the audit API's session; if the two services ever disagreed, the memory API's `403` is shown as "needs an administrator".
+
+**Contract gap.** The memory API's OpenAPI document (main, with the M2 jobs) has no route for the Retrieval Inspector's logged
+retrieval, a memory's retrieval history or the recent `job_runs`. The portal defines them in `src/lib/memory/schemas.ts` and
+`http.ts` as read-only, administrator-only routes (the shapes mirror `RetrievalLogEntry`, a per-memory slice of it, and `JobRun` in
+proba-memory), and treats a `404` on the two list routes as "this memory service does not provide that yet". They need to be added to
+proba-memory; until then the Retrieval Inspector works through a search run with `includeCandidates`.
+
+**Untrusted text.** Every memory carries `trust: "untrusted_data"` (the schema rejects anything else). Text is rendered as text,
+never as markup, and each screen says it is information, not an instruction.
 
 ## Raw text (the Content panel)
 
@@ -129,9 +159,9 @@ text search may be sensitive), or raw content: names matching
 
 | Layer | Tool | What it covers |
 | --- | --- | --- |
-| Unit and component | Vitest + Testing Library (`TZ=UTC`) | time and range logic, filters, router, series, config, both adapters (the HTTP client is run against the in-memory source over a fake `fetch`, which doubles as a contract test), auth mapping, every screen with real interaction |
+| Unit and component | Vitest + Testing Library (`TZ=UTC`) | time and range logic, filters, router, series, config, all adapters (each HTTP client is run against its in-memory source over a fake `fetch`, which doubles as a contract test), auth mapping, every screen with real interaction |
 | Browser, project `app` | Playwright + axe | production UI against the in-memory adapter and the real Firebase SDK (identity endpoints answered at the network level): sign-in paths, every screen, filters, paging, drawer focus handling, empty/error states, accessibility (WCAG 2.2 AA tags), phone-sized layout |
-| Browser, project `http` | Playwright | the production code path: bearer token on the wire, 401 refresh and retry, 403 access screen, sign-out on a revoked session, cursor paging, outage and retry, JSON log lines |
+| Browser, project `http` | Playwright | the production code path: bearer token on the wire, 401 refresh and retry, 403 access screen, sign-out on a revoked session, cursor paging, outage and retry, JSON log lines; for memory, the bearer token, search as a POST body, administrator routes never asked of a viewer, a service without job runs, outage and retry |
 
 Both browser projects mock at the network layer (`e2e/support`), so nothing in the app is replaced.
 Neither needs the audit API or a Firebase project. What they cannot show is a real Firebase project

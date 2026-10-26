@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Section = 'explorer' | 'traces' | 'integrity' | 'analytics';
+export type Section = 'explorer' | 'traces' | 'integrity' | 'analytics' | 'memory' | 'retrievals' | 'profiles' | 'jobs';
 
-export const SECTIONS: Section[] = ['explorer', 'traces', 'integrity', 'analytics'];
+export const SECTIONS: Section[] = ['explorer', 'traces', 'integrity', 'analytics', 'memory', 'retrievals', 'profiles', 'jobs'];
 
 export interface Route {
   section: Section;
-  /** A trace id for `traces/<id>`. */
+  /** A trace id for `traces/<id>`, a memory id for `memory/<id>`, a retrieval id for `retrievals/<id>`. */
   id?: string;
   /** Filters and view state, kept in the address so a view can be shared and reloaded. */
   query: URLSearchParams;

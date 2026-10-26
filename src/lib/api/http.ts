@@ -1,6 +1,4 @@
-import type { z } from 'zod';
-import { getLogger } from '../log/logger';
-import { ApiError, type ApiErrorKind } from './errors';
+import { HttpTransport, type Query, type TokenSource } from './transport';
 import type {
   AuditApi,
   CallOptions,
@@ -13,7 +11,6 @@ import type {
 import {
   chainVerificationSchema,
   campaignsResponseSchema,
-  errorBodySchema,
   eventContentSchema,
   eventsPageSchema,
   facetsSchema,
@@ -26,9 +23,10 @@ import {
   tracesPageSchema,
   type AuditEventRecord,
 } from './schemas';
+import type { z } from 'zod';
+import type { ApiError } from './errors';
 
-/** Provides the current Firebase ID token; `forceRefresh` after a 401. */
-export type TokenSource = (forceRefresh?: boolean) => Promise<string>;
+export type { TokenSource };
 
 export interface HttpAuditApiOptions {
   baseUrl: string;
@@ -38,161 +36,16 @@ export interface HttpAuditApiOptions {
   onError?: (error: ApiError) => void;
 }
 
-type Query = Record<string, string | number | undefined>;
-
-function kindFor(status: number): ApiErrorKind {
-  if (status === 401) return 'unauthenticated';
-  if (status === 403) return 'forbidden';
-  if (status === 404) return 'not_found';
-  if (status === 429) return 'rate_limited';
-  if (status >= 400 && status < 500) return 'invalid_request';
-  return 'unavailable';
-}
-
-const MESSAGES: Record<ApiErrorKind, string> = {
-  unauthenticated: 'Your session is no longer valid. Please sign in again.',
-  forbidden: "Your account doesn't have access to this.",
-  not_found: "We couldn't find what you were looking for.",
-  invalid_request: 'Some of the values you entered were not accepted.',
-  rate_limited: 'Too many requests. Please wait a moment and try again.',
-  unavailable: 'Proba is temporarily unavailable. Please try again shortly.',
-  bad_response: 'Proba returned a response we could not read. Please try again.',
-  network: "We couldn't reach Proba. Check your connection and try again.",
-  cancelled: 'The request was cancelled.',
-};
-
 /** Reads the audit API (proba-audit /v1) with the signed-in person's Firebase ID token. */
 export class HttpAuditApi implements AuditApi {
-  private readonly baseUrl: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly transport: HttpTransport;
 
-  constructor(private readonly options: HttpAuditApiOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/+$/, '');
-    this.fetchImpl = options.fetchImpl ?? ((...args) => fetch(...args));
+  constructor(options: HttpAuditApiOptions) {
+    this.transport = new HttpTransport(options);
   }
 
-  private url(path: string, query?: Query): string {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(query ?? {})) {
-      if (value !== undefined && value !== '') params.set(key, String(value));
-    }
-    const qs = params.toString();
-    return `${this.baseUrl}${path}${qs ? `?${qs}` : ''}`;
-  }
-
-  private async send(url: string, token: string, signal?: AbortSignal): Promise<Response> {
-    const started = Date.now();
-    const parsed = new URL(url);
-    const where = { method: 'GET', path: parsed.pathname, queryKeys: [...parsed.searchParams.keys()] };
-    try {
-      const response = await this.fetchImpl(url, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-        signal,
-      });
-      getLogger().info('api.request', {
-        ...where,
-        status: response.status,
-        durationMs: Date.now() - started,
-        traceId: response.headers.get('X-Trace-Id') ?? undefined,
-      });
-      return response;
-    } catch (error) {
-      if ((error as { name?: string } | null)?.name === 'AbortError') {
-        getLogger().debug('api.cancelled', { ...where, durationMs: Date.now() - started });
-        throw new ApiError('cancelled', MESSAGES.cancelled);
-      }
-      getLogger().warn('api.network_error', { ...where, durationMs: Date.now() - started });
-      throw new ApiError('network', MESSAGES.network);
-    }
-  }
-
-  private async fail(response: Response): Promise<never> {
-    let body: z.infer<typeof errorBodySchema> | undefined;
-    try {
-      const parsed = errorBodySchema.safeParse(await response.json());
-      if (parsed.success) body = parsed.data;
-    } catch {
-      /* not JSON (e.g. a proxy error page) */
-    }
-    const kind = kindFor(response.status);
-    const retryAfter = Number(response.headers.get('Retry-After'));
-    const error = new ApiError(kind, kind === 'invalid_request' && body?.message ? body.message : MESSAGES[kind], {
-      status: response.status,
-      code: body?.error,
-      traceId: body?.traceId ?? response.headers.get('X-Trace-Id') ?? undefined,
-      issues: body?.issues,
-      retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
-    });
-    getLogger()[response.status >= 500 ? 'error' : 'warn']('api.error', {
-      path: new URL(response.url || this.baseUrl).pathname,
-      status: response.status,
-      kind,
-      code: body?.error,
-      traceId: error.traceId,
-    });
-    this.options.onError?.(error);
-    throw error;
-  }
-
-  private refreshing: Promise<string> | null = null;
-
-  /** Several requests rejected at once share one refresh instead of each asking for a new token. */
-  private refreshToken(): Promise<string> {
-    if (!this.refreshing) getLogger().info('api.token_refresh');
-    this.refreshing ??= this.options.getToken(true).finally(() => {
-      this.refreshing = null;
-    });
-    return this.refreshing;
-  }
-
-  private async get<S extends z.ZodTypeAny>(
-    path: string,
-    schema: S,
-    query?: Query,
-    callOptions?: CallOptions
-  ): Promise<z.infer<S>> {
-    const url = this.url(path, query);
-    let token: string;
-    try {
-      token = await this.options.getToken();
-    } catch {
-      throw new ApiError('unauthenticated', MESSAGES.unauthenticated);
-    }
-    let response = await this.send(url, token, callOptions?.signal);
-    if (response.status === 401) {
-      // The token may simply have expired: refresh it once and retry.
-      try {
-        token = await this.refreshToken();
-      } catch {
-        throw new ApiError('unauthenticated', MESSAGES.unauthenticated, { status: 401 });
-      }
-      response = await this.send(url, token, callOptions?.signal);
-    }
-    if (!response.ok) return this.fail(response);
-
-    let json: unknown;
-    try {
-      json = await response.json();
-    } catch {
-      throw new ApiError('bad_response', MESSAGES.bad_response, { status: response.status });
-    }
-    const parsed = schema.safeParse(json);
-    if (!parsed.success) {
-      const error = new ApiError('bad_response', MESSAGES.bad_response, {
-        status: response.status,
-        traceId: response.headers.get('X-Trace-Id') ?? undefined,
-      });
-      getLogger().error('api.bad_response', {
-        path,
-        status: response.status,
-        traceId: response.headers.get('X-Trace-Id') ?? undefined,
-        issues: parsed.error.issues.slice(0, 3).map((i) => ({ path: i.path.join('.'), message: i.message })),
-      });
-      this.options.onError?.(error);
-      throw error;
-    }
-    return parsed.data;
+  private get<S extends z.ZodTypeAny>(path: string, schema: S, query?: Query, callOptions?: CallOptions): Promise<z.infer<S>> {
+    return this.transport.get(path, schema, query, callOptions?.signal);
   }
 
   getSession(options?: CallOptions) {

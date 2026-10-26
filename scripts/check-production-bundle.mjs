@@ -19,11 +19,20 @@ const FORBIDDEN = [
   /Pause the retargeting campaign until Thursday/,
   /workspace limit of 5,000/,
   /northwind\.example/,
+  // The in-memory memory source and its fixtures.
+  /proba-in-memory-memory-adapter/,
+  /InMemoryMemoryApi/,
+  /__probaMemory|__probaAudit/,
+  /seedMemories|seedProfiles|seedJobRuns/,
+  /7a1c0000-0000-4000/,
+  /Daily spend above 5,000 USD/,
+  /The embedding provider did not answer in time/,
   // Configuration used only by the browser checks.
   /proba-e2e/,
   /e2e-api-key/,
   /memory\.example\.com/,
   /127\.0\.0\.1:3998/,
+  /127\.0\.0\.1:3997/,
   // Wording that must never reach people.
   /\bmock\b/i,
   /fixture/i,
@@ -56,9 +65,9 @@ for (const file of files) {
   }
 }
 
-// The in-memory source is split into its own chunk when enabled: no such chunk may exist.
+// The in-memory sources are split into their own chunks when enabled: no such chunk may exist.
 for (const file of files) {
-  if (/memory-audit-api|seed/i.test(file)) problems.push(`${file}: an in-memory data source chunk was emitted`);
+  if (/memory-audit-api|in-memory-memory-api|memory-seed|seed/i.test(file)) problems.push(`${file}: an in-memory data source chunk was emitted`);
 }
 
 if (problems.length > 0) {

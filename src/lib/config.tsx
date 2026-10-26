@@ -7,8 +7,9 @@ export interface AppConfig {
   /** Firebase Authentication web config; null when incomplete (sign-in unavailable). */
   firebase: FirebaseWebConfig | null;
   /**
-   * Address of the Proba memory console. Feature flag: the "Memory" navigation entry exists only
-   * when this is a valid http(s) address, and there is nothing in its place otherwise.
+   * Address of the Proba memory API (proba-memory, apps/memory-api). Feature flag: the memory screens
+   * (Memory Explorer, Retrieval Inspector, Scoring profiles, Jobs) exist only when this is a valid
+   * http(s) address, and there is nothing in their place otherwise.
    */
   memoryUrl: string | null;
   /** debug | info | warn | error | silent. */

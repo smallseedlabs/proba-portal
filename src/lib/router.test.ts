@@ -14,6 +14,14 @@ describe('router', () => {
     expect(parseHash('#/settings').section).toBe('explorer');
   });
 
+  it('parses the memory screens and their ids', () => {
+    expect(parseHash('#/memory/7a1c0000-0000-4000-8000-000000000003')).toMatchObject({ section: 'memory', id: '7a1c0000-0000-4000-8000-000000000003' });
+    expect(parseHash('#/retrievals/abc').section).toBe('retrievals');
+    expect(parseHash('#/profiles').section).toBe('profiles');
+    expect(parseHash('#/jobs?status=failed').query.get('status')).toBe('failed');
+    expect(routeHref({ section: 'memory', query: { q: 'budget approval', category: 'semantic', status: undefined } })).toBe('#/memory?q=budget+approval&category=semantic');
+  });
+
   it('survives a malformed id', () => {
     expect(parseHash('#/traces/%E0%A4%A').id).toBeUndefined();
   });

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { vi } from 'vitest';

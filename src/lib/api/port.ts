@@ -7,11 +7,13 @@ import type {
   AuditRiskLevel,
   CampaignsResponse,
   ChainVerification,
+  EventContent,
   EventsPage,
   Facets,
   Granularity,
   MetricsSummary,
   PeriodComparison,
+  TraceContent,
   TraceTree,
   TracesPage,
 } from './schemas';
@@ -76,8 +78,12 @@ export interface AuditApi {
   getSession(options?: CallOptions): Promise<ApiSession>;
   searchEvents(query: EventQuery, options?: CallOptions): Promise<EventsPage>;
   getEvent(eventId: string, options?: CallOptions): Promise<AuditEventRecord>;
+  /** Raw text of one event. Administrators only; rejects with 403 for viewers and 404 when there is no text or the deployment does not serve it. */
+  getEventContent(eventId: string, options?: CallOptions): Promise<EventContent>;
   listTraces(query: TimeRange & { limit?: number; cursor?: string }, options?: CallOptions): Promise<TracesPage>;
   getTrace(traceId: string, options?: CallOptions): Promise<TraceTree>;
+  /** Raw text of every event of a trace that has some. Same rules as getEventContent. */
+  getTraceContent(traceId: string, options?: CallOptions): Promise<TraceContent>;
   getFacets(query?: TimeRange & { limit?: number }, options?: CallOptions): Promise<Facets>;
   verifyChain(query: { from: string; to: string }, options?: CallOptions): Promise<ChainVerification>;
   getAnalyticsSummary(query: SummaryQuery, options?: CallOptions): Promise<MetricsSummary>;

@@ -14,12 +14,14 @@ import {
   chainVerificationSchema,
   campaignsResponseSchema,
   errorBodySchema,
+  eventContentSchema,
   eventsPageSchema,
   facetsSchema,
   metricsSummarySchema,
   periodComparisonSchema,
   sessionSchema,
   storedAuditEventSchema,
+  traceContentSchema,
   traceTreeSchema,
   tracesPageSchema,
   type AuditEventRecord,
@@ -203,6 +205,14 @@ export class HttpAuditApi implements AuditApi {
 
   getEvent(eventId: string, options?: CallOptions): Promise<AuditEventRecord> {
     return this.get(`/v1/events/${encodeURIComponent(eventId)}`, storedAuditEventSchema, undefined, options);
+  }
+
+  getEventContent(eventId: string, options?: CallOptions) {
+    return this.get(`/v1/events/${encodeURIComponent(eventId)}/content`, eventContentSchema, undefined, options);
+  }
+
+  getTraceContent(traceId: string, options?: CallOptions) {
+    return this.get(`/v1/traces/${encodeURIComponent(traceId)}/content`, traceContentSchema, undefined, options);
   }
 
   listTraces(query: TimeRange & { limit?: number; cursor?: string }, options?: CallOptions) {

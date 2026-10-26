@@ -16,6 +16,8 @@ const FORBIDDEN = [
   /seedAuditData|seedEvents|seedMetrics/,
   /fixture-subject/,
   /cmp_spring_launch/,
+  /Pause the retargeting campaign until Thursday/,
+  /workspace limit of 5,000/,
   /northwind\.example/,
   // Configuration used only by the browser checks.
   /proba-e2e/,

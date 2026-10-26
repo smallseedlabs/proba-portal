@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-e2e
+dist-e2e-http
+playwright-report
+test-results
+blob-report
+coverage
+docs/screenshots
+.git
+.env
+.env.*
+!.env.example
+*.log

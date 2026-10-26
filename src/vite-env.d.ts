@@ -1,0 +1,20 @@
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_API_BASE_URL?: string;
+  readonly VITE_API_ADAPTER?: string;
+  readonly VITE_MEMORY_URL?: string;
+  readonly VITE_LOG_LEVEL?: string;
+  readonly VITE_LOG_SINK?: string;
+  readonly VITE_FIREBASE_API_KEY?: string;
+  readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
+  readonly VITE_FIREBASE_PROJECT_ID?: string;
+  readonly VITE_FIREBASE_APP_ID?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+/** Compile-time flag, see vite.config.ts. The in-memory data source is excluded from the bundle when false. */
+declare const __IN_MEMORY_API__: boolean;

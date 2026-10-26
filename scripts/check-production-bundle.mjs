@@ -1,0 +1,66 @@
+// Fails if the in-memory data source, its fixture data, test-only configuration or prototype wording
+// reach the production bundle. Run after `npm run build` (the build in ./dist).
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const DIST = process.argv[2] ?? 'dist';
+if (!existsSync(DIST)) {
+  console.error(`Production bundle check failed: ${DIST} does not exist. Run "npm run build" first.`);
+  process.exit(1);
+}
+
+const FORBIDDEN = [
+  // The in-memory data source and its fixtures.
+  /proba-in-memory-adapter/,
+  /InMemoryAuditApi/,
+  /seedAuditData|seedEvents|seedMetrics/,
+  /fixture-subject/,
+  /cmp_spring_launch/,
+  /northwind\.example/,
+  // Configuration used only by the browser checks.
+  /proba-e2e/,
+  /e2e-api-key/,
+  /memory\.example\.com/,
+  /127\.0\.0\.1:3998/,
+  // Wording that must never reach people.
+  /\bmock\b/i,
+  /fixture/i,
+  /dev login/i,
+  /\balpha\b/i,
+  /\bbeta\b/i,
+  /\bstub\b/i,
+  /coming soon/i,
+  /lorem ipsum/i,
+  // A Firebase web API key must come from the environment at run time or build time, never from the source.
+  // (A key in a production build is expected when the build is configured with one: only the e2e values are forbidden.)
+];
+
+const files = [];
+const walk = (dir) => {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) walk(path);
+    else if (/\.(js|html|css|map)$/.test(entry.name)) files.push(path);
+  }
+};
+walk(DIST);
+
+const problems = [];
+for (const file of files) {
+  const text = readFileSync(file, 'utf8');
+  for (const pattern of FORBIDDEN) {
+    const match = text.match(pattern);
+    if (match) problems.push(`${file}: found "${match[0]}"`);
+  }
+}
+
+// The in-memory source is split into its own chunk when enabled: no such chunk may exist.
+for (const file of files) {
+  if (/memory-audit-api|seed/i.test(file)) problems.push(`${file}: an in-memory data source chunk was emitted`);
+}
+
+if (problems.length > 0) {
+  console.error('Production bundle check failed:\n' + problems.join('\n'));
+  process.exit(1);
+}
+console.log(`Production bundle check passed (${files.length} files scanned in ${DIST}).`);

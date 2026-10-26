@@ -5,21 +5,13 @@ import type { EventContent } from '../../lib/api/schemas';
 import { contentKindLabel } from '../../lib/labels';
 import { formatTimestamp } from '../../lib/time';
 import { useTimeMode } from '../../lib/time-context';
-import { useApi, useApiContext } from '../../state/api';
+import { useApi } from '../../state/api';
+import { useCanReadContent } from '../../state/useCanReadContent';
 import { useApiQuery } from '../../state/useApiQuery';
 import { Badge } from '../ui/badge';
 import { Card, CardHeader } from '../ui/card';
 import { Skeleton } from '../ui/feedback';
 import { CopyButton, ErrorPanel } from './common';
-
-/**
- * Raw text of events is for administrators only. The audit API enforces that (403 for everyone else);
- * the portal does not even ask unless the signed-in person is an administrator, and shows nothing at all
- * (no heading, no placeholder) when the API has no text to give.
- */
-export function useCanReadContent(): boolean {
-  return useApiContext().access.role === 'admin';
-}
 
 const CONTENT_NOTICE = 'Visible to administrators only. Each time raw text is opened it is recorded in the audit trail.';
 

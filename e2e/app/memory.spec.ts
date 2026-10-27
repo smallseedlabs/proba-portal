@@ -156,7 +156,7 @@ test.describe('Memory screens for people who are not administrators', () => {
     for (const hash of ['#/jobs', '#/retrievals', '#/profiles'] as const) {
       await goTo(page, hash);
       await expect(page.getByTestId('not-permitted')).toBeVisible();
-      await expect(page.getByText('Not permitted')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Not permitted' })).toBeVisible();
     }
     await expectNoAxeViolations(page);
   });

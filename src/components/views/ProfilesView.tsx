@@ -71,7 +71,7 @@ export function ProfilesView() {
     return (
       <AdminOnly
         title="Scoring profiles"
-        description="Not permitted. Only workspace administrators can see scoring profiles and their configuration. Ask an administrator, or to change your role."
+        description="Only workspace administrators can see scoring profiles and their configuration. Ask an administrator, or to change your role."
       />
     );
   }

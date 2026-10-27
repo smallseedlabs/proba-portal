@@ -1,12 +1,17 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '../../lib/api/errors';
-import { fixtureApi, renderWithApi } from '../../test/render';
+import { fixtureApi, renderWithApi, NOW } from '../../test/render';
 import { ExplorerView } from './ExplorerView';
 
 beforeEach(() => {
   window.location.hash = '#/explorer';
+  // The clock agrees with the fixture's, so "the last 24 hours" means the same window to both.
+  vi.useFakeTimers({ toFake: ['Date'], now: NOW });
+});
+
+afterEach(() => {
   vi.useRealTimers();
 });
 

@@ -107,6 +107,10 @@ one image serves any environment:
 | `LOG_LEVEL`, `LOG_SINK` | `debug`, `info`, `warn`, `error` or `silent`; `console` or `none` | `info`, `console` |
 | `PORTAL_HOST_PORT` | Host port (compose only) | `3410` |
 
+The container's port is published on `127.0.0.1` only (CI runs `npm run check:compose`, which also refuses a port bound to
+another address and any password with a default; the portal itself holds no secret). To reach it from another machine, put a
+reverse proxy with TLS in front of it.
+
 The host ports (3410 for the portal, 3400 for the audit API) are deliberately not the services'
 defaults, so everything can run beside the other Proba projects. To run the portal together with
 the audit API and its data stores, use the local stack in the `proba` repository:

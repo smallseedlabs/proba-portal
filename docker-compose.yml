@@ -8,6 +8,13 @@
 # (http://localhost:3400; see proba/local, `./up.sh --portal`, which wires both together).
 # Host ports here are deliberately not the services' defaults, so this can run next to the
 # other Proba projects.
+#
+# SECURITY (checked in CI by scripts/check-compose-security.mjs):
+#   * The published port is bound to 127.0.0.1: the portal is reachable from this machine only. To expose it, put a reverse proxy
+#     with TLS in front of it; do not widen the bind.
+#   * The portal holds no password or secret. Everything in `environment` is public configuration the browser receives in
+#     env-config.js (the Firebase web API key identifies the project and is not a secret). Never add a password with a default here:
+#     a secret has to be `${NAME:?set NAME}` (the check refuses anything else).
 services:
   portal:
     build:
@@ -15,7 +22,7 @@ services:
     image: proba-portal:local
     container_name: proba-portal
     ports:
-      - "${PORTAL_HOST_PORT:-3410}:8080"
+      - "127.0.0.1:${PORTAL_HOST_PORT:-3410}:8080"
     environment:
       API_BASE_URL: ${API_BASE_URL:-http://localhost:3400}
       MEMORY_URL: ${MEMORY_URL:-}

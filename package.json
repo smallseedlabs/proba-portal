@@ -22,6 +22,7 @@
     "build:e2e-http": "VITE_API_ADAPTER=http VITE_API_BASE_URL=http://127.0.0.1:3998 VITE_MEMORY_URL=http://127.0.0.1:3997 VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e-http",
     "preview:e2e-http": "vite preview --outDir dist-e2e-http --port 4191 --strictPort",
     "check:bundle": "node scripts/check-production-bundle.mjs",
+    "check:compose": "node scripts/check-compose-security.mjs --allow-no-secrets --public FIREBASE_API_KEY docker-compose.yml",
     "screenshots": "playwright test --config playwright.screenshots.config.ts"
   },
   "dependencies": {
@@ -50,6 +51,7 @@
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.14",
+    "js-yaml": "^4.3.2",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",

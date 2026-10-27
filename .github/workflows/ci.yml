@@ -72,6 +72,21 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  compose-security:
+    name: Compose security (loopback ports, no default passwords)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      # Resolves docker-compose.yml and fails if a published port is not bound to 127.0.0.1 or a password has a default (or a literal).
+      # The portal has no secrets; the Firebase web API key is public configuration, so it is exempt.
+      - name: Check docker-compose.yml
+        run: npm run check:compose
+
   docker:
     name: Docker build
     runs-on: ubuntu-latest

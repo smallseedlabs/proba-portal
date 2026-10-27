@@ -43,7 +43,6 @@ export function JobsView() {
     return (
       <AdminOnly
         title="Jobs"
-        heading="Jobs need an administrator"
         description="Only workspace administrators can see the background jobs that keep memory tidy. Ask an administrator, or to change your role."
       />
     );

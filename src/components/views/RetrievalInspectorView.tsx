@@ -72,7 +72,6 @@ export function RetrievalInspectorView({ retrievalId }: { retrievalId?: string }
     return (
       <AdminOnly
         title="Retrieval Inspector"
-        heading="The Retrieval Inspector needs an administrator"
         description="Only workspace administrators can see which memories were considered for a question and how each was scored. Ask an administrator, or to change your role."
       />
     );

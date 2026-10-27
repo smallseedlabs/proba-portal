@@ -91,7 +91,8 @@ describe('RetrievalInspectorView', () => {
   it('is for administrators only, and does not even ask the service', () => {
     const memory = fixtureMemoryApi({ role: 'viewer' });
     renderWithApi(<RetrievalInspectorView retrievalId="3f2b8c1e-5a7d-4e90-b1c2-6d8f0a9e4b73" />, { role: 'viewer', memory });
-    expect(screen.getByText('The Retrieval Inspector needs an administrator')).toBeInTheDocument();
+    expect(screen.getByTestId('not-permitted')).toBeInTheDocument();
+    expect(screen.getByText('Not permitted')).toBeInTheDocument();
     expect(memory.calls.getRetrieval).toBeUndefined();
     expect(screen.queryByRole('button', { name: 'Run' })).not.toBeInTheDocument();
   });

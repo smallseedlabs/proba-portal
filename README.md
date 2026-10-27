@@ -45,9 +45,9 @@ More: [Jobs](docs/screenshots/17-jobs.png), [Memory Explorer for a viewer](docs/
 | Analytics | `#/analytics` (`?granularity=hour` or `day`, `period`, `campaignId`) | everyone with access |
 | Memory Explorer | `#/memory` (`?q=`, `category`, `status`, `source`) | only when `MEMORY_URL` is set. Everyone with access sees active memories; administrators can also filter by status |
 | Memory Detail | `#/memory/<memoryId>` | as above. Provenance, links and the replacement history for everyone; the retrieval history and the extraction model for administrators |
-| Retrieval Inspector | `#/retrievals` and `#/retrievals/<retrievalId>` | administrators, when `MEMORY_URL` is set |
-| Scoring profiles | `#/profiles` | when `MEMORY_URL` is set: the list and the active version for everyone, the full configuration for administrators. Read-only |
-| Jobs | `#/jobs` | administrators, when `MEMORY_URL` is set |
+| Retrieval Inspector | `#/retrievals` and `#/retrievals/<retrievalId>` | administrators, when `MEMORY_URL` is set (viewers typing the URL see “Not permitted”) |
+| Scoring profiles | `#/profiles` | administrators, when `MEMORY_URL` is set (viewers typing the URL see “Not permitted”) |
+| Jobs | `#/jobs` | administrators, when `MEMORY_URL` is set (viewers typing the URL see “Not permitted”) |
 
 Without `MEMORY_URL` there is no memory entry, route or request at all. The memory screens read the memory API with the
 same Firebase ID token as the audit API; the workspace is decided by the service from that token.
@@ -104,6 +104,7 @@ one image serves any environment:
 | `API_BASE_URL` | Where the browser reaches the audit API | `http://localhost:3400` in compose |
 | `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID` | Firebase web app config | empty: sign-in not available |
 | `MEMORY_URL` | Feature flag: address of the memory API (`apps/memory-api`, port 3200 by default); adds the memory screens | empty: no memory screens |
+| `PORTAL_MEMORY_URL` | Alias of `MEMORY_URL` (umbrella stack / `proba/local` naming). Either name works at runtime | same as `MEMORY_URL` |
 | `LOG_LEVEL`, `LOG_SINK` | `debug`, `info`, `warn`, `error` or `silent`; `console` or `none` | `info`, `console` |
 | `PORTAL_HOST_PORT` | Host port (compose only) | `3410` |
 

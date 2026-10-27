@@ -52,4 +52,11 @@ describe('loadConfig', () => {
     expect(loadConfig({ MEMORY_URL: 'not a url' }).memoryUrl).toBeNull();
     expect(loadConfig({ MEMORY_URL: 'https://memory.acme.io' }).memoryUrl).toBe('https://memory.acme.io/');
   });
+
+  it('accepts PORTAL_MEMORY_URL as an alias of MEMORY_URL (umbrella stack naming)', () => {
+    expect(loadConfig({ PORTAL_MEMORY_URL: 'https://memory.acme.io' }).memoryUrl).toBe('https://memory.acme.io/');
+    expect(loadConfig({ MEMORY_URL: 'https://a.example/', PORTAL_MEMORY_URL: 'https://b.example/' }).memoryUrl).toBe(
+      'https://a.example/'
+    );
+  });
 });

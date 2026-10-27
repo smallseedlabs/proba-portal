@@ -146,17 +146,18 @@ test.describe('Memory screens for people who are not administrators', () => {
     await expect(page.getByRole('table', { name: 'Memories, newest first' })).toBeVisible();
     await expect(page.getByLabel('Status')).toHaveCount(0);
     await expect(NAV(page).getByRole('link', { name: 'Memory Explorer' })).toBeVisible();
-    await expect(NAV(page).getByRole('link', { name: 'Scoring profiles' })).toBeVisible();
+    await expect(NAV(page).getByRole('link', { name: 'Scoring profiles' })).toHaveCount(0);
     await expect(NAV(page).getByRole('link', { name: 'Retrieval Inspector' })).toHaveCount(0);
     await expect(NAV(page).getByRole('link', { name: 'Jobs' })).toHaveCount(0);
     await expectNoAxeViolations(page);
   });
 
   test('are told, not shown an error, when they open an administrator screen by its address', async ({ page }) => {
-    await goTo(page, '#/jobs');
-    await expect(page.getByText('Jobs need an administrator')).toBeVisible();
-    await goTo(page, '#/retrievals');
-    await expect(page.getByText('The Retrieval Inspector needs an administrator')).toBeVisible();
+    for (const hash of ['#/jobs', '#/retrievals', '#/profiles'] as const) {
+      await goTo(page, hash);
+      await expect(page.getByTestId('not-permitted')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Not permitted' })).toBeVisible();
+    }
     await expectNoAxeViolations(page);
   });
 

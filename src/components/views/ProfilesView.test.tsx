@@ -28,10 +28,12 @@ describe('ProfilesView', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
-  it('gives viewers the list and the active version, without the configuration', async () => {
-    renderWithApi(<ProfilesView />, { role: 'viewer', memory: fixtureMemoryApi({ role: 'viewer' }) });
-    expect(await screen.findByTestId('active-default')).toHaveTextContent('Version 2');
-    expect(screen.queryByText('Configuration', { selector: 'summary' })).not.toBeInTheDocument();
+  it('is for administrators only: a viewer typing #/profiles sees not permitted', () => {
+    const memory = fixtureMemoryApi({ role: 'viewer' });
+    renderWithApi(<ProfilesView />, { role: 'viewer', memory });
+    expect(screen.getByTestId('not-permitted')).toBeInTheDocument();
+    expect(screen.getByText('Not permitted')).toBeInTheDocument();
+    expect(memory.calls.listProfiles).toBeUndefined();
   });
 
   it('explains a failure and retries', async () => {

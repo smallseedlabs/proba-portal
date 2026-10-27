@@ -1,11 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { fixtureApi, renderWithApi } from '../../test/render';
+import { fixtureApi, renderWithApi, NOW } from '../../test/render';
 import { AnalyticsView } from './AnalyticsView';
 
 beforeEach(() => {
   window.location.hash = '#/analytics';
+  // The clock agrees with the fixture's, so period windows match the seeded metrics.
+  vi.useFakeTimers({ toFake: ['Date'], now: NOW });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('AnalyticsView', () => {

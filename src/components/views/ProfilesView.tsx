@@ -6,7 +6,7 @@ import { useTimeMode } from '../../lib/time-context';
 import { useApiContext, useMemoryApi } from '../../state/api';
 import { useApiQuery } from '../../state/useApiQuery';
 import { ErrorPanel, NoResults, PageHeader } from '../audit/common';
-import { Definition, DefinitionGrid, Meter, ProfileStatusBadge } from '../memory/shared';
+import { AdminOnly, Definition, DefinitionGrid, Meter, ProfileStatusBadge } from '../memory/shared';
 import { Card, CardBody, CardHeader } from '../ui/card';
 import { Skeleton } from '../ui/feedback';
 
@@ -64,8 +64,17 @@ export function ProfilesView() {
   const { access } = useApiContext();
   const { mode } = useTimeMode();
   const admin = access.role === 'admin';
-  const profiles = useApiQuery('profiles', (signal) => memory.listProfiles({ signal }));
+  const profiles = useApiQuery(admin ? 'profiles' : null, (signal) => memory.listProfiles({ signal }));
   const list = profiles.state.data;
+
+  if (!admin || (profiles.state.status === 'error' && profiles.state.error.code === 'insufficient_role')) {
+    return (
+      <AdminOnly
+        title="Scoring profiles"
+        description="Not permitted. Only workspace administrators can see scoring profiles and their configuration. Ask an administrator, or to change your role."
+      />
+    );
+  }
 
   const names = list ? [...new Set(list.map((p) => p.name))].sort() : [];
   const active = (name: string) => list?.find((p) => p.name === name && p.status === 'active');

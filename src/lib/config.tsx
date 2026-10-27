@@ -20,7 +20,13 @@ export interface AppConfig {
 
 export interface RuntimeEnv {
   API_BASE_URL?: string;
+  /** Address of the memory API. Preferred name inside the portal image. */
   MEMORY_URL?: string;
+  /**
+   * Same as MEMORY_URL. The umbrella stack (`proba/local`) sets `PORTAL_MEMORY_URL` and maps it into the
+   * portal container; accept it here so either name works at runtime.
+   */
+  PORTAL_MEMORY_URL?: string;
   FIREBASE_API_KEY?: string;
   FIREBASE_AUTH_DOMAIN?: string;
   FIREBASE_PROJECT_ID?: string;
@@ -64,7 +70,12 @@ export function loadConfig(env: RuntimeEnv | undefined = (window as { ENV?: Runt
   return {
     apiBaseUrl: (env?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3100').replace(/\/+$/, ''),
     firebase: firebaseConfig(env),
-    memoryUrl: parseHttpUrl(env?.MEMORY_URL || import.meta.env.VITE_MEMORY_URL),
+    memoryUrl: parseHttpUrl(
+      env?.MEMORY_URL ||
+        env?.PORTAL_MEMORY_URL ||
+        import.meta.env.VITE_MEMORY_URL ||
+        import.meta.env.VITE_PORTAL_MEMORY_URL
+    ),
     logLevel: env?.LOG_LEVEL || import.meta.env.VITE_LOG_LEVEL || 'info',
     logSink: env?.LOG_SINK || import.meta.env.VITE_LOG_SINK || 'console',
   };

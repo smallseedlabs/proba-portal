@@ -18,7 +18,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   { section: 'analytics', label: 'Analytics', icon: BarChart3 },
   { section: 'memory', label: 'Memory Explorer', icon: Brain, group: 'memory' },
   { section: 'retrievals', label: 'Retrieval Inspector', icon: Microscope, adminOnly: true, group: 'memory' },
-  { section: 'profiles', label: 'Scoring profiles', icon: SlidersHorizontal, group: 'memory' },
+  { section: 'profiles', label: 'Scoring profiles', icon: SlidersHorizontal, adminOnly: true, group: 'memory' },
   { section: 'jobs', label: 'Jobs', icon: Briefcase, adminOnly: true, group: 'memory' },
 ];
 

@@ -39,7 +39,8 @@ describe('JobsView', () => {
   it('is for administrators only, and does not even ask the service', () => {
     const memory = fixtureMemoryApi({ role: 'viewer' });
     renderWithApi(<JobsView />, { role: 'viewer', memory });
-    expect(screen.getByText('Jobs need an administrator')).toBeInTheDocument();
+    expect(screen.getByTestId('not-permitted')).toBeInTheDocument();
+    expect(screen.getByText('Not permitted')).toBeInTheDocument();
     expect(memory.calls.listJobRuns).toBeUndefined();
   });
 

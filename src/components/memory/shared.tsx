@@ -79,9 +79,17 @@ export function Meter({ value, className }: { value: number; className?: string 
 }
 
 /** Shown to people who are not administrators on screens that are for administrators only. */
-export function AdminOnly({ title, heading, description }: { title: string; heading: string; description: string }) {
+export function AdminOnly({
+  title,
+  heading = 'Not permitted',
+  description,
+}: {
+  title: string;
+  heading?: string;
+  description: string;
+}) {
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 lg:px-8">
+    <div className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 lg:px-8" data-testid="not-permitted">
       <PageHeader title={title} />
       <Card>
         <EmptyState icon={<ShieldOff className="h-6 w-6" />} title={heading} description={description} />

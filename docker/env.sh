@@ -7,7 +7,8 @@ set -e
 cat > /usr/share/nginx/html/env-config.js << EOF2
 window.ENV = {
   API_BASE_URL: "${API_BASE_URL:-http://localhost:3100}",
-  MEMORY_URL: "${MEMORY_URL:-}",
+  MEMORY_URL: "${MEMORY_URL:-${PORTAL_MEMORY_URL:-}}",
+  PORTAL_MEMORY_URL: "${PORTAL_MEMORY_URL:-${MEMORY_URL:-}}",
   FIREBASE_API_KEY: "${FIREBASE_API_KEY:-}",
   FIREBASE_AUTH_DOMAIN: "${FIREBASE_AUTH_DOMAIN:-}",
   FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID:-}",

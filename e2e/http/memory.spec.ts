@@ -64,7 +64,8 @@ test.describe('over the memory API', () => {
     await signInThroughNetwork(page, '#/jobs');
     await expect(page.getByText('Jobs need an administrator')).toBeVisible();
     await goTo(page, '#/retrievals/3f2b8c1e-5a7d-4e90-b1c2-6d8f0a9e4b73');
-    await expect(page.getByText('The Retrieval Inspector needs an administrator')).toBeVisible();
+    await expect(page.getByTestId('not-permitted')).toBeVisible();
+    await expect(page.getByText('Not permitted')).toBeVisible();
     await goTo(page, '#/profiles');
     await expect(page.getByRole('table', { name: 'Scoring profile versions' })).toBeVisible();
     expect(memory.requests.some((r) => r.path === '/v1/jobs/runs' || r.path.startsWith('/v1/retrievals/'))).toBe(false);

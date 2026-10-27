@@ -29,7 +29,7 @@ describe('Sidebar', () => {
   it('hides the administrator-only memory screens from viewers', () => {
     render(<Sidebar current="memory" items={visibleEntries({ admin: false, memory: true })} />);
     const group = screen.getByRole('group', { name: 'Memory' });
-    expect(names(within(group).getAllByRole('link'))).toEqual(['Memory Explorer', 'Scoring profiles']);
+    expect(names(within(group).getAllByRole('link'))).toEqual(['Memory Explorer']);
   });
 
   it('keeps an accessible name for the memory group in the compact rail', () => {

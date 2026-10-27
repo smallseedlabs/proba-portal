@@ -156,7 +156,8 @@ test.describe('Memory screens for people who are not administrators', () => {
     await goTo(page, '#/jobs');
     await expect(page.getByText('Jobs need an administrator')).toBeVisible();
     await goTo(page, '#/retrievals');
-    await expect(page.getByText('The Retrieval Inspector needs an administrator')).toBeVisible();
+    await expect(page.getByTestId('not-permitted')).toBeVisible();
+    await expect(page.getByText('Not permitted')).toBeVisible();
     await expectNoAxeViolations(page);
   });
 

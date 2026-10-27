@@ -97,7 +97,8 @@ absent there is no client, no entry, no route (a memory address shows the Audit 
 
 Who may see what is decided by the memory API from the token (`403 insufficient_role`, viewers get active memories only); the portal
 additionally does not ask for what a viewer cannot have, so a viewer never causes a refused request. The role shown in the portal
-comes from the audit API's session; if the two services ever disagreed, the memory API's `403` is shown as "needs an administrator".
+comes from the audit API's session; if the two services ever disagreed, the memory API's `403` is shown as "Not permitted".
+Viewers who type `#/retrievals`, `#/profiles` or `#/jobs` see that same "Not permitted" screen without calling the memory API.
 
 **Contract gap.** The memory API's OpenAPI document (main, with the M2 jobs) has no route for the Retrieval Inspector's logged
 retrieval, a memory's retrieval history or the recent `job_runs`. The portal defines them in `src/lib/memory/schemas.ts` and

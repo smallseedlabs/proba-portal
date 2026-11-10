@@ -73,3 +73,63 @@ describe('AnalyticsView', () => {
     expect(screen.getByTestId('freshness')).toHaveTextContent('No data received yet');
   });
 });
+
+describe('AnalyticsView stub data', () => {
+  async function withCampaigns(rows: Array<{ platform: string; accountId: string; campaignId: string; spend: number }>) {
+    const api = fixtureApi();
+    const real = await api.getTopCampaigns({ from: '2026-09-26T00:00:00.000Z', to: '2026-10-26T00:00:00.000Z', granularity: 'day', limit: 1 });
+    const template = real.campaigns[0]!;
+    vi.spyOn(api, 'getTopCampaigns').mockResolvedValue({
+      ...real,
+      truncated: false,
+      campaigns: rows.map((r) => ({ ...template, ...r })),
+    });
+    return api;
+  }
+
+  it('labels stub connector rows and says there is no real data yet', async () => {
+    const api = await withCampaigns(
+      Array.from({ length: 3 }, (_, i) => ({ platform: 'meta', accountId: 'stub_meta_acct_1', campaignId: `stub_meta_cmp_1${i}`, spend: 100 - i }))
+    );
+    renderWithApi(<AnalyticsView />, { api });
+    const table = await screen.findByRole('table', { name: 'Top campaigns by spend' });
+    expect(within(table).getAllByText('Sample data')).toHaveLength(3);
+    expect(screen.getByText('No real data yet')).toBeInTheDocument();
+    expect(screen.getByTestId('sample-data-notice')).toHaveTextContent(/meta figures .* generated sample data .* not real delivery/);
+  });
+
+  it('keeps real campaigns visible behind many stub rows and drops the "no real data" title', async () => {
+    const stubs = Array.from({ length: 12 }, (_, i) => ({
+      platform: i % 2 ? 'google' : 'meta',
+      accountId: `stub_${i % 2 ? 'google' : 'meta'}_acct_1`,
+      campaignId: `stub_cmp_${i}`,
+      spend: 1000 - i,
+    }));
+    const api = await withCampaigns([...stubs, { platform: 'reddit', accountId: 'a2_live', campaignId: '2000000001', spend: 1.5 }]);
+    renderWithApi(<AnalyticsView />, { api });
+    const table = await screen.findByRole('table', { name: 'Top campaigns by spend' });
+    const redditRow = within(table).getByRole('button', { name: '2000000001' }).closest('tr')!;
+    expect(within(redditRow).queryByText('Sample data')).toBeNull();
+    expect(within(table).getAllByText('Sample data')).toHaveLength(10);
+    expect(screen.getByText('Includes sample data')).toBeInTheDocument();
+    expect(screen.queryByText('No real data yet')).toBeNull();
+    expect(screen.getByText(/plus every campaign with real data/)).toBeInTheDocument();
+  });
+
+  it('still shows only the top 10 when every row is real', async () => {
+    const api = await withCampaigns(
+      Array.from({ length: 14 }, (_, i) => ({ platform: 'reddit', accountId: 'a2_live', campaignId: `20000000${10 + i}`, spend: 100 - i }))
+    );
+    renderWithApi(<AnalyticsView />, { api });
+    const table = await screen.findByRole('table', { name: 'Top campaigns by spend' });
+    expect(within(table).getAllByRole('row')).toHaveLength(11);
+    expect(screen.getByText(/Showing the top 10 campaigns by spend/)).toBeInTheDocument();
+  });
+
+  it('shows no stub notice for real data only', async () => {
+    renderWithApi(<AnalyticsView />);
+    await screen.findByRole('table', { name: 'Top campaigns by spend' });
+    expect(screen.queryByTestId('sample-data-notice')).toBeNull();
+    expect(screen.queryByText('Sample data')).toBeNull();
+  });
+});

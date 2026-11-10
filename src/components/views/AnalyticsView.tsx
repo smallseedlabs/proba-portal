@@ -4,6 +4,7 @@ import type { Change, Granularity, MetricsTotals } from '../../lib/api/schemas';
 import { ANALYTICS_PRESETS, defaultPreset, periodFor, presetsFor } from '../../lib/analytics-ranges';
 import { routeHref, useRoute } from '../../lib/router';
 import { METRICS, buildSeries, formatChange, type MetricKey } from '../../lib/series';
+import { isStubMetricsRow } from '../../lib/stub-data';
 import { formatTimestamp } from '../../lib/time';
 import { useTimeMode } from '../../lib/time-context';
 import { cn } from '../../lib/utils/cn';
@@ -12,10 +13,16 @@ import { useApi } from '../../state/api';
 import { useApiQuery } from '../../state/useApiQuery';
 import { MetricChart } from '../analytics/MetricChart';
 import { ErrorPanel, NoResults, PageHeader } from '../audit/common';
+import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardBody, CardHeader } from '../ui/card';
-import { Skeleton } from '../ui/feedback';
+import { Callout, Skeleton } from '../ui/feedback';
 import { Label, NativeSelect } from '../ui/field';
+
+/** Rows shown in Top campaigns; real (non-stub) campaigns past this are still listed so they are never hidden by stub rows. */
+const TOP_CAMPAIGN_ROWS = 10;
+/** Fetch enough rows to find real campaigns behind the stub ones (audit-api allows up to 100). */
+const CAMPAIGN_FETCH_LIMIT = 100;
 
 function money(value: number, currency: string, compact = false) {
   return formatCurrency(value, currency, { compact, decimals: compact ? 0 : 2 });
@@ -111,7 +118,7 @@ export function AnalyticsView() {
     )
   );
   const campaigns = useApiQuery(`campaigns:${baseKey}`, (signal) =>
-    api.getTopCampaigns({ from: period.from, to: period.to, granularity, limit: 10 }, { signal })
+    api.getTopCampaigns({ from: period.from, to: period.to, granularity, limit: CAMPAIGN_FETCH_LIMIT }, { signal })
   );
 
   const update = (next: { granularity?: Granularity; period?: string; campaignId?: string | null }) => {
@@ -153,6 +160,16 @@ export function AnalyticsView() {
     () => (summary.state.data && currency ? buildSeries(summary.state.data.series, metric, currency, period, granularity) : []),
     [summary.state.data, currency, metric, period, granularity]
   );
+  const allCampaigns = useMemo(() => campaigns.state.data?.campaigns ?? [], [campaigns.state.data]);
+  const stubCount = allCampaigns.filter(isStubMetricsRow).length;
+  const realCount = allCampaigns.length - stubCount;
+  // Top rows by spend; when generated rows are present, real campaigns further down are kept too.
+  const shownCampaigns = useMemo(
+    () => allCampaigns.filter((c, i) => i < TOP_CAMPAIGN_ROWS || (stubCount > 0 && !isStubMetricsRow(c))),
+    [allCampaigns, stubCount]
+  );
+  const campaignsHidden = shownCampaigns.length < allCampaigns.length || Boolean(campaigns.state.data?.truncated);
+  const stubPlatforms = [...new Set(allCampaigns.filter(isStubMetricsRow).map((c) => c.platform.replace(/_/g, ' ')))];
   const isMoney = metric === 'spend';
   const metricLabel = METRICS.find((m) => m.key === metric)!.label;
   const noData = summary.state.status === 'success' && totals.length === 0;
@@ -177,6 +194,22 @@ export function AnalyticsView() {
           </p>
         }
       />
+
+      {stubCount > 0 && (
+        <Callout
+          tone="warning"
+          role="status"
+          title={realCount === 0 && !campaigns.state.data?.truncated ? 'No real data yet' : 'Includes sample data'}
+        >
+          <span data-testid="sample-data-notice">
+            {stubPlatforms.length > 0 ? `${stubPlatforms.join(' and ')} figures` : 'Some figures'} on this page are generated sample data from the
+            local connector, not real delivery, and are included in the totals and chart.{' '}
+            {realCount === 0
+              ? 'Real platform data appears here once a connected platform reports delivery (for Reddit, after the next metrics sync).'
+              : 'Pick a campaign without the “Sample data” label to see real figures only.'}
+          </span>
+        </Callout>
+      )}
 
       <Card>
         <CardBody>
@@ -336,7 +369,7 @@ export function AnalyticsView() {
                   <Skeleton key={i} className="h-5 w-full" />
                 ))}
               </div>
-            ) : campaigns.state.data.campaigns.length === 0 ? (
+            ) : allCampaigns.length === 0 ? (
               <NoResults title="No campaign activity" description="No campaign delivered in this period." />
             ) : (
               <>
@@ -356,7 +389,7 @@ export function AnalyticsView() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {campaigns.state.data.campaigns.map((c) => (
+                      {shownCampaigns.map((c) => (
                         <tr key={`${c.platform}:${c.accountId}:${c.campaignId}`} className={cn('hover:bg-muted/40', campaignId === c.campaignId && 'bg-primary-subtle/50')}>
                           <th scope="row" className="px-5 py-3 text-left font-medium">
                             <button
@@ -374,7 +407,16 @@ export function AnalyticsView() {
                               Activity<span className="sr-only"> for {c.campaignId}</span>
                             </a>
                           </th>
-                          <td className="px-3 py-3 text-muted-foreground">{c.platform.replace(/_/g, ' ')}</td>
+                          <td className="px-3 py-3 text-muted-foreground">
+                            <span className="inline-flex items-center gap-2">
+                              {c.platform.replace(/_/g, ' ')}
+                              {isStubMetricsRow(c) && (
+                                <Badge tone="warning" title="Generated locally, not real delivery">
+                                  Sample data
+                                </Badge>
+                              )}
+                            </span>
+                          </td>
                           <td className="px-3 py-3 text-right tabular-nums">{money(c.spend, c.currency)}</td>
                           <td className="px-3 py-3 text-right tabular-nums">{formatNumber(c.impressions)}</td>
                           <td className="px-3 py-3 text-right tabular-nums">{formatNumber(c.clicks)}</td>
@@ -386,8 +428,11 @@ export function AnalyticsView() {
                     </tbody>
                   </table>
                 </div>
-                {campaigns.state.data.truncated && (
-                  <p className="border-t px-5 py-3 text-caption text-muted-foreground">Showing the top {campaigns.state.data.campaigns.length} campaigns by spend.</p>
+                {campaignsHidden && (
+                  <p className="border-t px-5 py-3 text-caption text-muted-foreground">
+                    Showing the top {Math.min(TOP_CAMPAIGN_ROWS, shownCampaigns.length)} campaigns by spend
+                    {shownCampaigns.length > TOP_CAMPAIGN_ROWS ? ', plus every campaign with real data' : ''}.
+                  </p>
                 )}
               </>
             )}

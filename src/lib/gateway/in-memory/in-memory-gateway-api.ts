@@ -41,6 +41,12 @@ function seed(): GuardrailsSnapshot {
     envLimits: {},
     effectiveLimits: {},
     verbs: DEFAULT_VERBS.map((v) => ({ ...v })),
+    creative: { locked: { maxHeadlineChars: 300, maxBodyChars: 10000, bannedPhrases: ['guarantee', 'risk-free', '100%'] }, file: null },
+    reviewer: {
+      locked: { minCheckHours: 1, maxCheckHours: 168, maxAutoChangePct: 20 },
+      file: null,
+      effective: { minCheckHours: 1, maxCheckHours: 168, maxAutoChangePct: 20 },
+    },
   };
 }
 
@@ -92,6 +98,18 @@ export class InMemoryGatewayApi implements GatewayApi {
           });
         }
       }
+      const lockedReviewer = this.snapshot.reviewer?.locked ?? { minCheckHours: 1, maxCheckHours: 168, maxAutoChangePct: 20 };
+      const r = body.reviewer;
+      const loosen = (msg: string) => {
+        throw new ApiError('invalid_request', `${msg}; guardrails can only tighten`, { status: 400, code: 'guardrails_rejected' });
+      };
+      if (r?.minCheckHours !== undefined && r.minCheckHours < lockedReviewer.minCheckHours) loosen(`reviewer.minCheckHours=${r.minCheckHours} would loosen the code lock (${lockedReviewer.minCheckHours})`);
+      if (r?.maxCheckHours !== undefined && r.maxCheckHours > lockedReviewer.maxCheckHours) loosen(`reviewer.maxCheckHours=${r.maxCheckHours} would loosen the code lock (${lockedReviewer.maxCheckHours})`);
+      if (r?.maxAutoChangePct !== undefined && r.maxAutoChangePct > lockedReviewer.maxAutoChangePct) loosen(`reviewer.maxAutoChangePct=${r.maxAutoChangePct} would loosen the code lock (${lockedReviewer.maxAutoChangePct})`);
+      const c = body.creative;
+      const lockedCreative = this.snapshot.creative?.locked;
+      if (lockedCreative && c?.maxHeadlineChars !== undefined && c.maxHeadlineChars > lockedCreative.maxHeadlineChars) loosen(`creative.maxHeadlineChars=${c.maxHeadlineChars} would loosen the code lock (${lockedCreative.maxHeadlineChars})`);
+      if (lockedCreative && c?.maxBodyChars !== undefined && c.maxBodyChars > lockedCreative.maxBodyChars) loosen(`creative.maxBodyChars=${c.maxBodyChars} would loosen the code lock (${lockedCreative.maxBodyChars})`);
       const fileLimits = { ...(body.limits ?? {}) };
       const verbs = this.snapshot.verbs.map((verb) => {
         const file = body.verbs?.[verb.name] ?? null;
@@ -105,6 +123,20 @@ export class InMemoryGatewayApi implements GatewayApi {
         fileLimits,
         effectiveLimits: { ...fileLimits },
         verbs,
+        ...(this.snapshot.creative ? { creative: { ...this.snapshot.creative, file: c ?? null } } : {}),
+        ...(this.snapshot.reviewer
+          ? {
+              reviewer: {
+                locked: lockedReviewer,
+                file: r ?? null,
+                effective: {
+                  minCheckHours: Math.max(lockedReviewer.minCheckHours, r?.minCheckHours ?? 0),
+                  maxCheckHours: Math.min(lockedReviewer.maxCheckHours, r?.maxCheckHours ?? Infinity),
+                  maxAutoChangePct: Math.min(lockedReviewer.maxAutoChangePct, r?.maxAutoChangePct ?? Infinity),
+                },
+              },
+            }
+          : {}),
       };
       this.writes += 1;
       return structuredClone(this.snapshot);

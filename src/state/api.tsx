@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { AuditApi } from '../lib/api/port';
 import type { MemoryApi } from '../lib/memory/port';
+import type { GatewayApi } from '../lib/gateway/port';
 import type { ApiSession } from '../lib/api/schemas';
 import type { SessionUser } from '../lib/auth';
 
@@ -15,15 +16,17 @@ export interface ApiContextValue {
   onSignOut: () => void;
   /** The memory service client. Present only when the memory feature is switched on (MEMORY_URL is set). */
   memory: MemoryApi | null;
+  /** The gateway admin client. Present only when GATEWAY_URL is set. */
+  gateway: GatewayApi | null;
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null);
 
 export function ApiProvider({ children, ...value }: ApiContextValue & { children: ReactNode }) {
-  const { api, user, access, onSessionExpired, onSignOut, memory } = value;
+  const { api, user, access, onSessionExpired, onSignOut, memory, gateway } = value;
   const memo = useMemo(
-    () => ({ api, user, access, onSessionExpired, onSignOut, memory }),
-    [api, user, access, onSessionExpired, onSignOut, memory]
+    () => ({ api, user, access, onSessionExpired, onSignOut, memory, gateway }),
+    [api, user, access, onSessionExpired, onSignOut, memory, gateway]
   );
   return <ApiContext.Provider value={memo}>{children}</ApiContext.Provider>;
 }
@@ -49,4 +52,15 @@ export function useMemoryApi(): MemoryApi {
   const { memory } = useApiContext();
   if (!memory) throw new Error('useMemoryApi needs the memory feature to be switched on');
   return memory;
+}
+
+/**
+ * The gateway admin client. Only the Guardrails screen calls this, and that screen is only
+ * reachable when GATEWAY_URL is set, so a missing client is a programming error.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useGatewayApi(): GatewayApi {
+  const { gateway } = useApiContext();
+  if (!gateway) throw new Error('useGatewayApi needs the guardrails feature to be switched on');
+  return gateway;
 }

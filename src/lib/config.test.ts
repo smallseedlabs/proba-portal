@@ -59,4 +59,11 @@ describe('loadConfig', () => {
       'https://a.example/'
     );
   });
+
+  it('switches the guardrails screen on only when a valid gateway address is configured', () => {
+    expect(loadConfig({ GATEWAY_URL: '' }).gatewayUrl).toBeNull();
+    expect(loadConfig({ GATEWAY_URL: 'not a url' }).gatewayUrl).toBeNull();
+    expect(loadConfig({ GATEWAY_URL: 'http://localhost:3700' }).gatewayUrl).toBe('http://localhost:3700/');
+    expect(loadConfig({ PORTAL_GATEWAY_URL: 'http://localhost:3700' }).gatewayUrl).toBe('http://localhost:3700/');
+  });
 });

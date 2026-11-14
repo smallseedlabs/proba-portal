@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { Sidebar } from './Sidebar';
 import { visibleEntries } from './nav';
 
@@ -41,5 +41,16 @@ describe('Sidebar', () => {
   it('carries no placeholder wording', () => {
     render(<Sidebar current="explorer" items={visibleEntries({ admin: true, memory: true })} />);
     expect(document.body.textContent).not.toMatch(/coming soon|soon|placeholder|\btest\b|\bdemo\b/i);
+  });
+
+  it('shows Guardrails only for administrators when the gateway is configured', () => {
+    render(<Sidebar current="explorer" items={visibleEntries({ admin: true, memory: false, gateway: true })} />);
+    expect(screen.getByRole('link', { name: 'Guardrails' })).toHaveAttribute('href', '#/guardrails');
+    cleanup();
+    render(<Sidebar current="explorer" items={visibleEntries({ admin: false, memory: false, gateway: true })} />);
+    expect(screen.queryByRole('link', { name: 'Guardrails' })).not.toBeInTheDocument();
+    cleanup();
+    render(<Sidebar current="explorer" items={visibleEntries({ admin: true, memory: false, gateway: false })} />);
+    expect(screen.queryByRole('link', { name: 'Guardrails' })).not.toBeInTheDocument();
   });
 });

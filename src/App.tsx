@@ -4,6 +4,8 @@ import { createAuditApi } from './lib/api/factory';
 import type { AuditApi } from './lib/api/port';
 import { createMemoryApi } from './lib/memory/factory';
 import type { MemoryApi } from './lib/memory/port';
+import { createGatewayApi } from './lib/gateway/factory';
+import type { GatewayApi } from './lib/gateway/port';
 import type { ApiSession } from './lib/api/schemas';
 import { AUTH_ERROR_MESSAGES, AuthError, FirebaseAuthClient, type Session } from './lib/auth';
 import { useConfig } from './lib/config';
@@ -42,7 +44,7 @@ type Phase =
   | { name: 'signed-out'; notice: string | null }
   /** Signed in; checking with the audit API who this person is. */
   | { name: 'connecting'; session: Session }
-  | { name: 'ready'; session: Session; api: AuditApi; memory: MemoryApi | null; access: ApiSession }
+  | { name: 'ready'; session: Session; api: AuditApi; memory: MemoryApi | null; gateway: GatewayApi | null; access: ApiSession }
   | { name: 'no-access'; session: Session; error: ApiError };
 
 export default function App() {
@@ -102,9 +104,10 @@ export default function App() {
         const api = await createAuditApi({ apiBaseUrl: config.apiBaseUrl, getToken });
         // The memory client exists only when the memory feature is switched on. The person's role comes from the audit API.
         const memory = await createMemoryApi({ memoryUrl: config.memoryUrl, getToken });
+        const gateway = await createGatewayApi({ gatewayUrl: config.gatewayUrl, getToken });
         const access = await api.getSession();
         getLogger().info('session.ready', { role: access.role, workspaceId: access.workspaceId });
-        if (!cancelled) setPhase({ name: 'ready', session: connectingSession, api, memory, access });
+        if (!cancelled) setPhase({ name: 'ready', session: connectingSession, api, memory, gateway, access });
       } catch (error) {
         if (cancelled) return;
         const apiError = error instanceof ApiError ? error : new ApiError('unavailable', 'Proba is temporarily unavailable. Please try again shortly.');
@@ -120,7 +123,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [connectingSession, config.apiBaseUrl, config.memoryUrl, auth, signedOut]);
+  }, [connectingSession, config.apiBaseUrl, config.memoryUrl, config.gatewayUrl, auth, signedOut]);
 
   if (phase.name === 'starting' || phase.name === 'connecting') return <Splash />;
 
@@ -153,6 +156,7 @@ export default function App() {
       user={phase.session.user}
       access={phase.access}
       memory={phase.memory}
+      gateway={phase.gateway}
       onSessionExpired={handleExpired}
       onSignOut={handleSignOut}
     >

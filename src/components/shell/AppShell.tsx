@@ -5,6 +5,7 @@ import { useApiContext } from '../../state/api';
 import { AnalyticsView } from '../views/AnalyticsView';
 import { ExplorerView } from '../views/ExplorerView';
 import { IntegrityView } from '../views/IntegrityView';
+import { GuardrailsView } from '../views/GuardrailsView';
 import { JobsView } from '../views/JobsView';
 import { MemoryDetailView } from '../views/MemoryDetailView';
 import { MemoryExplorerView } from '../views/MemoryExplorerView';
@@ -17,15 +18,19 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
 const MEMORY_SECTIONS: Section[] = ['memory', 'retrievals', 'profiles', 'jobs'];
+const GATEWAY_SECTIONS: Section[] = ['guardrails'];
 
 export function AppShell() {
-  const { user, access, onSignOut, memory } = useApiContext();
+  const { user, access, onSignOut, memory, gateway } = useApiContext();
   const [route] = useRoute();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
-  const items = useMemo(() => visibleEntries({ admin: access.role === 'admin', memory: memory !== null }), [access.role, memory]);
+  const items = useMemo(() => visibleEntries({ admin: access.role === 'admin', memory: memory !== null, gateway: gateway !== null }), [access.role, memory, gateway]);
   // The memory screens exist only when the feature is switched on: otherwise their addresses show the Audit Explorer.
-  const section = !memory && MEMORY_SECTIONS.includes(route.section) ? 'explorer' : route.section;
+  const section =
+    (!memory && MEMORY_SECTIONS.includes(route.section)) || (!gateway && GATEWAY_SECTIONS.includes(route.section))
+      ? 'explorer'
+      : route.section;
 
   useEffect(() => {
     document.title = `${SECTION_TITLES[section]} · Proba Insights`;
@@ -73,6 +78,7 @@ export function AppShell() {
           {section === 'traces' && (route.id ? <TraceView key={route.id} traceId={route.id} /> : <TracesView />)}
           {section === 'integrity' && <IntegrityView />}
           {section === 'analytics' && <AnalyticsView />}
+          {section === 'guardrails' && <GuardrailsView />}
           {section === 'memory' && (route.id ? <MemoryDetailView key={route.id} memoryId={route.id} /> : <MemoryExplorerView />)}
           {section === 'retrievals' && <RetrievalInspectorView key={route.id ?? 'none'} retrievalId={route.id} />}
           {section === 'profiles' && <ProfilesView />}

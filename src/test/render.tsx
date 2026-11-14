@@ -6,6 +6,7 @@ import { InMemoryAuditApi, type InMemoryAuditApiOptions } from '../lib/api/memor
 import type { AuditApi } from '../lib/api/port';
 import { InMemoryMemoryApi, type InMemoryMemoryApiOptions } from '../lib/memory/in-memory/in-memory-memory-api';
 import type { MemoryApi } from '../lib/memory/port';
+import type { GatewayApi } from '../lib/gateway/port';
 import type { ApiSession } from '../lib/api/schemas';
 import { ApiProvider } from '../state/api';
 
@@ -25,9 +26,10 @@ export function renderWithApi(
     api = fixtureApi(),
     role = 'admin',
     memory = null,
+    gateway = null,
     onSessionExpired = vi.fn(),
     onSignOut = vi.fn(),
-  }: { api?: AuditApi; role?: ApiSession['role']; memory?: MemoryApi | null; onSessionExpired?: () => void; onSignOut?: () => void } = {}
+  }: { api?: AuditApi; role?: ApiSession['role']; memory?: MemoryApi | null; gateway?: GatewayApi | null; onSessionExpired?: () => void; onSignOut?: () => void } = {}
 ) {
   const access: ApiSession = { subject: 's', email: 'amelia.frost@northwind.example', role, workspaceId: 'ws_northwind' };
   const result = render(
@@ -36,11 +38,12 @@ export function renderWithApi(
       user={{ id: 'u', email: access.email, name: 'Amelia Frost' }}
       access={access}
       memory={memory}
+      gateway={gateway}
       onSessionExpired={onSessionExpired}
       onSignOut={onSignOut}
     >
       {ui}
     </ApiProvider>
   );
-  return { ...result, api, memory, onSessionExpired, onSignOut };
+  return { ...result, api, memory, gateway, onSessionExpired, onSignOut };
 }

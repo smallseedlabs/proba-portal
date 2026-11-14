@@ -22,7 +22,9 @@ const FORBIDDEN = [
   // The in-memory memory source and its fixtures.
   /proba-in-memory-memory-adapter/,
   /InMemoryMemoryApi/,
-  /__probaMemory|__probaAudit/,
+  /__probaMemory|__probaAudit|__probaGateway/,
+  /proba-in-memory-gateway-adapter/,
+  /InMemoryGatewayApi/,
   /seedMemories|seedProfiles|seedJobRuns/,
   /7a1c0000-0000-4000/,
   /Daily spend above 5,000 USD/,
@@ -67,7 +69,7 @@ for (const file of files) {
 
 // The in-memory sources are split into their own chunks when enabled: no such chunk may exist.
 for (const file of files) {
-  if (/memory-audit-api|in-memory-memory-api|memory-seed|seed/i.test(file)) problems.push(`${file}: an in-memory data source chunk was emitted`);
+  if (/memory-audit-api|in-memory-memory-api|memory-seed|in-memory-gateway-api|seed/i.test(file)) problems.push(`${file}: an in-memory data source chunk was emitted`);
 }
 
 if (problems.length > 0) {

@@ -18,7 +18,7 @@ export type Query = Record<string, string | number | undefined>;
 
 export interface RequestOptions {
   query?: Query;
-  /** JSON body (sent with POST). Its contents are never logged: only the names of its fields. */
+  /** JSON body (sent with POST or PUT). Its contents are never logged: only the names of its fields. */
   body?: unknown;
   signal?: AbortSignal;
 }
@@ -69,7 +69,7 @@ export class HttpTransport {
     return `${this.baseUrl}${path}${qs ? `?${qs}` : ''}`;
   }
 
-  private async send(method: 'GET' | 'POST', url: string, token: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+  private async send(method: 'GET' | 'POST' | 'PUT', url: string, token: string, body: unknown, signal?: AbortSignal): Promise<Response> {
     const started = Date.now();
     const parsed = new URL(url);
     const where = {
@@ -136,7 +136,7 @@ export class HttpTransport {
     return this.refreshing;
   }
 
-  async request<S extends z.ZodTypeAny>(method: 'GET' | 'POST', path: string, schema: S, options: RequestOptions = {}): Promise<z.infer<S>> {
+  async request<S extends z.ZodTypeAny>(method: 'GET' | 'POST' | 'PUT', path: string, schema: S, options: RequestOptions = {}): Promise<z.infer<S>> {
     const url = this.url(path, options.query);
     let token: string;
     try {
@@ -186,5 +186,9 @@ export class HttpTransport {
 
   post<S extends z.ZodTypeAny>(path: string, schema: S, body: unknown, signal?: AbortSignal): Promise<z.infer<S>> {
     return this.request('POST', path, schema, { body, signal });
+  }
+
+  put<S extends z.ZodTypeAny>(path: string, schema: S, body: unknown, signal?: AbortSignal): Promise<z.infer<S>> {
+    return this.request('PUT', path, schema, { body, signal });
   }
 }

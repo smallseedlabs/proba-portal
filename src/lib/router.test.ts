@@ -19,6 +19,7 @@ describe('router', () => {
     expect(parseHash('#/retrievals/abc').section).toBe('retrievals');
     expect(parseHash('#/profiles').section).toBe('profiles');
     expect(parseHash('#/jobs?status=failed').query.get('status')).toBe('failed');
+    expect(parseHash('#/guardrails').section).toBe('guardrails');
     expect(routeHref({ section: 'memory', query: { q: 'budget approval', category: 'semantic', status: undefined } })).toBe('#/memory?q=budget+approval&category=semantic');
   });
 

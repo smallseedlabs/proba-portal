@@ -12,6 +12,11 @@ export interface AppConfig {
    * http(s) address, and there is nothing in their place otherwise.
    */
   memoryUrl: string | null;
+  /**
+   * Address of the Proba gateway (proba-llm-gateway). Feature flag: the Guardrails screen
+   * exists only when this is a valid http(s) address.
+   */
+  gatewayUrl: string | null;
   /** debug | info | warn | error | silent. */
   logLevel: string;
   /** Where log entries go: "console" (JSON lines) or "none". */
@@ -27,6 +32,10 @@ export interface RuntimeEnv {
    * portal container; accept it here so either name works at runtime.
    */
   PORTAL_MEMORY_URL?: string;
+  /** Address of the gateway admin API. Preferred name inside the portal image. */
+  GATEWAY_URL?: string;
+  /** Same as GATEWAY_URL. The umbrella stack may set PORTAL_GATEWAY_URL. */
+  PORTAL_GATEWAY_URL?: string;
   FIREBASE_API_KEY?: string;
   FIREBASE_AUTH_DOMAIN?: string;
   FIREBASE_PROJECT_ID?: string;
@@ -75,6 +84,12 @@ export function loadConfig(env: RuntimeEnv | undefined = (window as { ENV?: Runt
         env?.PORTAL_MEMORY_URL ||
         import.meta.env.VITE_MEMORY_URL ||
         import.meta.env.VITE_PORTAL_MEMORY_URL
+    ),
+    gatewayUrl: parseHttpUrl(
+      env?.GATEWAY_URL ||
+        env?.PORTAL_GATEWAY_URL ||
+        import.meta.env.VITE_GATEWAY_URL ||
+        import.meta.env.VITE_PORTAL_GATEWAY_URL
     ),
     logLevel: env?.LOG_LEVEL || import.meta.env.VITE_LOG_LEVEL || 'info',
     logSink: env?.LOG_SINK || import.meta.env.VITE_LOG_SINK || 'console',

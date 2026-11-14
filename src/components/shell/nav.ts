@@ -1,4 +1,4 @@
-import { BarChart3, Brain, Briefcase, GitBranch, Microscope, ScrollText, ShieldCheck, SlidersHorizontal, type LucideIcon } from 'lucide-react';
+import { BarChart3, Brain, Briefcase, GitBranch, Microscope, ScrollText, Shield, ShieldCheck, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import type { Section } from '../../lib/router';
 
 export interface NavEntry {
@@ -7,8 +7,8 @@ export interface NavEntry {
   icon: LucideIcon;
   /** Only for administrators. */
   adminOnly?: boolean;
-  /** Part of the memory feature: shown only when MEMORY_URL is configured. */
-  group?: 'memory';
+  /** Shown only when the matching feature URL is configured. */
+  group?: 'memory' | 'gateway';
 }
 
 export const NAV_ENTRIES: NavEntry[] = [
@@ -16,6 +16,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   { section: 'traces', label: 'Traces', icon: GitBranch },
   { section: 'integrity', label: 'Integrity', icon: ShieldCheck, adminOnly: true },
   { section: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { section: 'guardrails', label: 'Guardrails', icon: Shield, adminOnly: true, group: 'gateway' },
   { section: 'memory', label: 'Memory Explorer', icon: Brain, group: 'memory' },
   { section: 'retrievals', label: 'Retrieval Inspector', icon: Microscope, adminOnly: true, group: 'memory' },
   { section: 'profiles', label: 'Scoring profiles', icon: SlidersHorizontal, adminOnly: true, group: 'memory' },
@@ -27,6 +28,7 @@ export const SECTION_TITLES: Record<Section, string> = {
   traces: 'Traces',
   integrity: 'Integrity',
   analytics: 'Analytics',
+  guardrails: 'Guardrails',
   memory: 'Memory Explorer',
   retrievals: 'Retrieval Inspector',
   profiles: 'Scoring profiles',
@@ -34,6 +36,11 @@ export const SECTION_TITLES: Record<Section, string> = {
 };
 
 /** The entries a person may see: administrator-only ones need the role, memory ones need the feature. */
-export function visibleEntries(options: { admin: boolean; memory: boolean }): NavEntry[] {
-  return NAV_ENTRIES.filter((e) => (!e.adminOnly || options.admin) && (e.group !== 'memory' || options.memory));
+export function visibleEntries(options: { admin: boolean; memory: boolean; gateway?: boolean }): NavEntry[] {
+  return NAV_ENTRIES.filter(
+    (e) =>
+      (!e.adminOnly || options.admin) &&
+      (e.group !== 'memory' || options.memory) &&
+      (e.group !== 'gateway' || Boolean(options.gateway))
+  );
 }

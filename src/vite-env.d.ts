@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_MEMORY_URL?: string;
   /** Alias of VITE_MEMORY_URL (umbrella stack naming). */
   readonly VITE_PORTAL_MEMORY_URL?: string;
+  readonly VITE_GATEWAY_URL?: string;
+  readonly VITE_PORTAL_GATEWAY_URL?: string;
   readonly VITE_LOG_LEVEL?: string;
   readonly VITE_LOG_SINK?: string;
   readonly VITE_FIREBASE_API_KEY?: string;

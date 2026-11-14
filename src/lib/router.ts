@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Section = 'explorer' | 'traces' | 'integrity' | 'analytics' | 'memory' | 'retrievals' | 'profiles' | 'jobs';
+export type Section = 'explorer' | 'traces' | 'integrity' | 'analytics' | 'guardrails' | 'memory' | 'retrievals' | 'profiles' | 'jobs';
 
-export const SECTIONS: Section[] = ['explorer', 'traces', 'integrity', 'analytics', 'memory', 'retrievals', 'profiles', 'jobs'];
+export const SECTIONS: Section[] = ['explorer', 'traces', 'integrity', 'analytics', 'guardrails', 'memory', 'retrievals', 'profiles', 'jobs'];
 
 export interface Route {
   section: Section;

@@ -38,6 +38,19 @@ export const verbSnapshotSchema = z
   })
   .strict();
 
+const positive = z.number().positive();
+export const creativeFileSchema = z
+  .object({
+    maxHeadlineChars: z.number().int().positive().optional(),
+    maxBodyChars: z.number().int().positive().optional(),
+    bannedPhrases: z.array(z.string().trim().min(1).max(100)).max(200).optional(),
+  })
+  .strict();
+export const reviewerFileSchema = z
+  .object({ minCheckHours: positive.optional(), maxCheckHours: positive.optional(), maxAutoChangePct: positive.optional() })
+  .strict();
+const reviewerBoundsSchema = z.object({ minCheckHours: z.number(), maxCheckHours: z.number(), maxAutoChangePct: z.number() }).strict();
+
 export const guardrailsSnapshotSchema = z
   .object({
     schema: z.literal('proba.gateway-guardrails/v1-effective'),
@@ -58,6 +71,15 @@ export const guardrailsSnapshotSchema = z
     envLimits: limitsSchema,
     effectiveLimits: limitsSchema,
     verbs: z.array(verbSnapshotSchema),
+    /** Present on gateways with the plan card / reviewer (older gateways omit them). */
+    creative: z
+      .object({
+        locked: z.object({ maxHeadlineChars: z.number(), maxBodyChars: z.number(), bannedPhrases: z.array(z.string()) }).strict(),
+        file: creativeFileSchema.nullable(),
+      })
+      .strict()
+      .optional(),
+    reviewer: z.object({ locked: reviewerBoundsSchema, file: reviewerFileSchema.nullable(), effective: reviewerBoundsSchema }).strict().optional(),
   })
   .strict();
 
@@ -71,7 +93,11 @@ export const guardrailsWriteSchema = z
     description: z.string().max(2000).optional(),
     verbs: z.record(z.string(), verbModeSchema).default({}),
     limits: limitsSchema.default({}),
+    creative: creativeFileSchema.optional(),
+    reviewer: reviewerFileSchema.optional(),
   })
   .strict();
 
 export type GuardrailsWrite = z.infer<typeof guardrailsWriteSchema>;
+export type ReviewerFile = z.infer<typeof reviewerFileSchema>;
+export type CreativeFile = z.infer<typeof creativeFileSchema>;

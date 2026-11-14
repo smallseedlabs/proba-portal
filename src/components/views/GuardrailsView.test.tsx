@@ -42,4 +42,39 @@ describe('GuardrailsView', () => {
     await waitFor(() => expect(gateway.writes).toBe(1));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('edits the reviewer bounds and post copy checks, and keeps them on later saves', async () => {
+    const gateway = new InMemoryGatewayApi();
+    const user = userEvent.setup();
+    renderWithApi(<GuardrailsView />, { gateway });
+    const minHours = await screen.findByLabelText('Minimum hours between reviews');
+    await user.type(minHours, '12');
+    await user.type(screen.getByLabelText('Largest automatic change (%)'), '10');
+    await user.type(screen.getByLabelText('Headline length cap'), '120');
+    await user.type(screen.getByLabelText('Extra banned phrases (one per line)'), 'act now{enter}limited time');
+    await user.click(screen.getByRole('button', { name: 'Save guardrails' }));
+    await waitFor(() => expect(gateway.writes).toBe(1));
+    let saved = await gateway.getGuardrails();
+    expect(saved.reviewer?.file).toEqual({ minCheckHours: 12, maxAutoChangePct: 10 });
+    expect(saved.reviewer?.effective).toEqual({ minCheckHours: 12, maxCheckHours: 168, maxAutoChangePct: 10 });
+    expect(saved.creative?.file).toEqual({ maxHeadlineChars: 120, bannedPhrases: ['act now', 'limited time'] });
+
+    // A later unrelated save sends the blocks back instead of dropping them.
+    await user.selectOptions(screen.getByLabelText('Policy for research.gather'), 'ask');
+    await user.click(screen.getByRole('button', { name: 'Save guardrails' }));
+    await waitFor(() => expect(gateway.writes).toBe(2));
+    saved = await gateway.getGuardrails();
+    expect(saved.reviewer?.file).toEqual({ minCheckHours: 12, maxAutoChangePct: 10 });
+    expect(saved.creative?.file?.bannedPhrases).toEqual(['act now', 'limited time']);
+  });
+
+  it('refuses a looser reviewer bound', async () => {
+    const gateway = new InMemoryGatewayApi();
+    const user = userEvent.setup();
+    renderWithApi(<GuardrailsView />, { gateway });
+    await user.type(await screen.findByLabelText('Largest automatic change (%)'), '50');
+    await user.click(screen.getByRole('button', { name: 'Save guardrails' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/would loosen/);
+    expect(gateway.writes).toBe(0);
+  });
 });
